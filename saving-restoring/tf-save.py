@@ -9,7 +9,7 @@ import os
 import tensorflow as tf
 
 # Save directory.
-save_dir = os.path.join('../saved/tf-save')
+save_dir = os.path.join('../saved/saving-restoring', 'tf-save')
 
 # Create the save directory if it doesn't exist.
 if not os.path.isdir(save_dir):
