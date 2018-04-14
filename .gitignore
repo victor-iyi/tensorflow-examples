@@ -36,3 +36,9 @@ Icon
 
 # Thumbnails
 ._*
+
+
+# User defined
+saved/
+datasets/
+corpus_gen.py
