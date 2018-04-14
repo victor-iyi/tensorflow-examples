@@ -1,13 +1,15 @@
 """Saving & Loading demo in TensorFlow."""
 
-# Suppress tensorflow deprecation warning
-import warnings
-warnings.filterwarnings('ignore')
-
 import os
+
+# Suppress tensorflow deprecation warning
+# import warnings
+# warnings.filterwarnings('ignore')
+
 import tensorflow as tf
 
-save_dir = os.path.join('saved/tf-save')
+# Save directory.
+save_dir = os.path.join('../saved/tf-save')
 
 # Create the save directory if it doesn't exist.
 if not os.path.isdir(save_dir):
@@ -32,6 +34,8 @@ all_saver = tf.train.Saver()
 # what name (as a dictionary).
 v2_saver = tf.train.Saver({'v2': v2})
 
+# NOTE: You must be careful to use a Saver with a Session linked to
+# the Graph containing all the variables the Saver is handling.
 # By default the Session handles the default graph & all related variables.
 with tf.Session() as sess:
     # Initialize all global variables.
