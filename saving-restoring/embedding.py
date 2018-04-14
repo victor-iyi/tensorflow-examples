@@ -1,10 +1,20 @@
 import os
-import tensorflow as tf
+import logging
+# import tensorflow as tf
 
-# Directories & files
-save_dir = os.path.join('saved/tf-save', 'embedding')
+logging.basicConfig(level=logging.DEBUG)
+
+# Dataset directory.
+data_path = os.path.join('../datasets/', 'python_code.py')
+
+# Save model & Tensorboard log dir.
+save_dir = os.path.join('saved/saving-restoring', 'embedding')
+
+# Tensorboard event directory.
 tensorboard_dir = os.path.join(save_dir, 'tensorboard')
 logdir = os.path.join(tensorboard_dir, 'log')
+
+# Model saver directory.
 model_dir = os.path.join(save_dir, 'models')
 model_path = os.path.join(model_dir, 'model.ckpt')
 
@@ -42,3 +52,26 @@ def batch_text(corpus, batch_size, seq_length):
         y = ys[i: i + batch_size]
 
         yield x, y
+
+
+# Load the corpus.
+with open(data_path, mode='r', encoding='utf-8') as f:
+    text = f.read()
+
+corpus = text.split()
+corpus_len = len(corpus)
+
+# Corpus unique tokens.
+tokens = set(corpus)
+nb_tokens = len(tokens)
+
+# Mapping between word to id & vice versa.
+word2id = {w: i for i, w in enumerate(tokens)}
+id2word = {i: w for i, w in enumerate(tokens)}
+
+# Convert the corpus to ids.
+corpus_ids = [word2id[word] for word in corpus]
+
+# Log corpus & token count.
+logging.info('corpus_len = {:,}'.format(corpus_len))
+logging.info('nb_tokens  = {:,}'.format(nb_tokens))
