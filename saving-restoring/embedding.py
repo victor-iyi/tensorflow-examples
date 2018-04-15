@@ -20,25 +20,22 @@ model_path = os.path.join(model_dir, 'model.ckpt')
 
 
 def batch_text(corpus, batch_size, seq_length):
-    """Batch generator function for generating the next
-    batch of a given corpus during training.
+    """Batch generator function for generating the next batch
+    of a given corpus during training.
 
-    Args:
-        corpus (str):
-            Data corpus.
-        batch_size (int):
-            Size of the generated batch.
-        seq_length (int):
-            Length of a single sequence in dataset.
+    Arguments:
+        corpus {str} -- Data corpus.
+        batch_size {int} -- Size of the generated batch.
+        seq_length {int} -- Length of a single sequence in the dataset.
 
     Raises:
-        ValueError:
-            seq_length >= len(corpus)
+        ValueError -- seq_len >= len(corpus)
 
     Yeilds:
-        x, y
-        Next training batch with it's corresponding label.
+        x, y {list} -- Next training batch with it's corresponding
+        label.
     """
+
     if seq_length >= len(corpus):
         raise ValueError('seq_length >= len(corpus): {}>={}'.format(
             seq_length, len(corpus)))
