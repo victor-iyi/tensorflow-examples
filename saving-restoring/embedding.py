@@ -1,7 +1,13 @@
 import os
 import logging
-# import tensorflow as tf
 
+# Ignore TensorFlow's deprecation warnings.
+import warnings
+warnings.filterwarnings('ignore')
+
+import tensorflow as tf
+
+# Configure log level.
 logging.basicConfig(level=logging.DEBUG)
 
 # Dataset directory.
