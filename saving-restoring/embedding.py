@@ -19,7 +19,7 @@ model_dir = os.path.join(save_dir, 'models')
 model_path = os.path.join(model_dir, 'model.ckpt')
 
 
-def batch_text(corpus, batch_size, seq_length):
+def batch_generator(corpus, batch_size, seq_length):
     """Batch generator function for generating the next batch
     of a given corpus during training.
 
