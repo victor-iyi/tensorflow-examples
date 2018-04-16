@@ -16,14 +16,17 @@ if not os.path.isdir(save_dir):
     os.makedirs(save_dir)
 
 # Definition of two variables in the default graph.
-v1 = tf.Variable(1, name='v1')
-v2 = tf.Variable(2, name='v2')
+v1 = tf.get_variable("v1", shape=[2, 3], initializer=tf.ones_initializer)
+v2 = tf.get_variable("v2", shape=[3, 2], initializer=tf.random_normal_initializer)
 
 # Perform an add operation.
-add = tf.add(v1, v2, name='add')
+mul = tf.matmul(v1, v2, name='mul')
 
 # Check if the add operation is in the default graph.
-print('add in default graph? {}'.format(add.graph == tf.get_default_graph()))
+print('mul in default graph? {}'.format(mul.graph == tf.get_default_graph()))
+
+# Initialize all global variables operation.
+init_op = tf.global_variables_initializer()
 
 # Saver objects.
 # By default tf.train.Saver handles all the variables in the default graph.
@@ -39,13 +42,19 @@ v2_saver = tf.train.Saver({'v2': v2})
 # By default the Session handles the default graph & all related variables.
 with tf.Session() as sess:
     # Initialize all global variables.
-    init = tf.global_variables_initializer()
-    sess.run(init)
+    # sess.run(init_op)
+    
+    # Initialize only v1, since we're goning to be restoring v2.
+    v1.initializer.run()
 
     # We save variables after creating a Session object.
-    all_saver.save(sess, os.path.join(save_dir, 'all-vars.ckpt'))
+    # all_saver.save(sess, os.path.join(save_dir, 'all-vars.ckpt'))
 
     # Or you can save a handful of variables.
     # NOTE: v2 is in the default graph, that's why we can pass the
     # current Session because it handles the default graph as weell.`
-    v2_saver.save(sess, os.path.join(save_dir, 'v2-var.ckpt'))
+    v2_saver.restore(sess, os.path.join(save_dir, 'v2-var.ckpt'))
+
+    print('v1.eval() = {}'.format(v1.eval()))
+    print('v2.eval() = {}'.format(v2.eval()))
+    print('mul.eval() = {}'.format(mul.eval()))
