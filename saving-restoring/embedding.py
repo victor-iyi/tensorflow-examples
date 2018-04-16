@@ -11,7 +11,7 @@ import tensorflow as tf
 logging.basicConfig(level=logging.DEBUG)
 
 # Dataset directory.
-data_path = os.path.join('../datasets/', 'python_code.py')
+data_path = os.path.join('datasets/', 'python_code.py')
 
 # Save model & Tensorboard log dir.
 save_dir = os.path.join('saved/saving-restoring', 'embedding')
