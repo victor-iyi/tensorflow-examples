@@ -8,7 +8,7 @@ import warnings
 warnings.filterwarnings("ignore")
 
 import tensorflow as tf
-print(tf.__version__)
+print(tf.VERSION)
 
 # Demo: TF Static Shape
 my_tensor = tf.ones(shape=[8, 2])
