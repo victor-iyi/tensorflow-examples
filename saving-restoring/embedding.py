@@ -78,3 +78,40 @@ corpus_ids = [word2id[word] for word in corpus]
 # Log corpus & token count.
 logging.info('corpus_len = {:,}'.format(corpus_len))
 logging.info('nb_tokens  = {:,}'.format(nb_tokens))
+
+# Model placeholders (inputs).
+seq_len = 5
+with tf.name_scope("placeholders"):
+    X = tf.placeholder(dtype=tf.int32, shape=[None, seq_len], name="X")
+    y = tf.placeholder(dtype=tf.int32, shape=[None, 1], name="Y")
+
+# Word Embeddings.
+embedding_dim = 30
+with tf.name_scope("embedding"):
+    embedding = tf.get_variable("embedding", dtype=tf.float32,
+                                shape=[nb_tokens, embedding_dim],
+                                initializer=tf.truncated_normal_initializer)
+    # Context vector. [batch_size x seq_len x embedding_dim]
+    context_vec = tf.nn.embedding_lookup(embedding, X, name="lookup")
+    context_vec = tf.reshape(context_vec,
+                             shape=[tf.shape(X)[0], seq_len*embedding_dim])
+
+# BUILD THE MODEL.
+with tf.name_scope("layer1"):
+    W1 = tf.get_variable("weights", dtype=tf.float32,
+                         shape=[seq_len*embedding_dim, embedding_dim],
+                         initializer=tf.truncated_normal_initializer)
+    b1 = tf.get_variable("biases", dtype=tf.float32,
+                         shape=[embedding_dim],
+                         initializer=tf.zeros_initializer)
+    # First hidden layer.
+    h1 = tf.nn.relu(tf.matmul(context_vec, W1) + b1)
+
+with tf.name_scope("layer2"):
+    W2 = tf.get_variable("weights", dtype=tf.float32,
+                         shape=[embedding_dim, embedding_dim],
+                         initializer=tf.truncated_normal_initializer)
+    b2 = tf.get_variable("biases", dtype=tf.float32,
+                         initializer=tf.zeros_initializer)
+
+    # Second hidden layer.
