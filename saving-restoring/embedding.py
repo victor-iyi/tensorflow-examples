@@ -84,6 +84,7 @@ seq_len = 5
 with tf.name_scope("placeholders"):
     X = tf.placeholder(dtype=tf.int32, shape=[None, seq_len], name="X")
     y = tf.placeholder(dtype=tf.int32, shape=[None, 1], name="Y")
+    y_true = tf.argmax(y)
 
 # Word Embeddings.
 embedding_dim = 30
@@ -114,4 +115,8 @@ with tf.name_scope("layer2"):
     b2 = tf.get_variable("biases", dtype=tf.float32,
                          initializer=tf.zeros_initializer)
 
-    # Second hidden layer.
+    # Second hidden layer.[batch_size x embedding_dim]
+    logits =tf.matmul(h1, W2) + b2
+
+    # [batch_size x nb_tokens]
+    y_pred = tf.matmul(logits, tf.transpose((embedding)))
