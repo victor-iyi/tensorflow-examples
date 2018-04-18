@@ -81,14 +81,14 @@ logging.info('nb_tokens  = {:,}'.format(nb_tokens))
 
 # Model placeholders (inputs).
 seq_len = 5
-with tf.name_scope("placeholders"):
+with tf.variable_scope("placeholders"):
     X = tf.placeholder(dtype=tf.int32, shape=[None, seq_len], name="X")
     y = tf.placeholder(dtype=tf.int32, shape=[None, 1], name="Y")
     y_true = tf.argmax(y)
 
 # Word Embeddings.
 embedding_dim = 30
-with tf.name_scope("embedding"):
+with tf.variable_scope("embedding"):
     embedding = tf.get_variable("embedding", dtype=tf.float32,
                                 shape=[nb_tokens, embedding_dim],
                                 initializer=tf.truncated_normal_initializer)
@@ -98,7 +98,7 @@ with tf.name_scope("embedding"):
                              shape=[tf.shape(X)[0], seq_len*embedding_dim])
 
 # BUILD THE MODEL.
-with tf.name_scope("layer1"):
+with tf.variable_scope("layer1"):
     W1 = tf.get_variable("weights", dtype=tf.float32,
                          shape=[seq_len*embedding_dim, embedding_dim],
                          initializer=tf.truncated_normal_initializer)
@@ -108,7 +108,7 @@ with tf.name_scope("layer1"):
     # First hidden layer.
     h1 = tf.nn.relu(tf.matmul(context_vec, W1) + b1)
 
-with tf.name_scope("layer2"):
+with tf.variable_scope("layer2"):
     W2 = tf.get_variable("weights", dtype=tf.float32,
                          shape=[embedding_dim, embedding_dim],
                          initializer=tf.truncated_normal_initializer)
@@ -119,13 +119,13 @@ with tf.name_scope("layer2"):
     logits =tf.matmul(h1, W2) + b2
 
 
-with tf.name_scope("output"):
+with tf.variable_scope("output"):
     # [batch_size x nb_tokens]
     y_pred = tf.matmul(logits, tf.transpose((embedding)))
     y_pred_cls = tf.argmax(y_pred, axis=1)
 
 
-with tf.name_scope("loss"):
+with tf.variable_scope("loss"):
     y_reshaped = tf.reshape(y, shape=[-1])
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(None, y_reshaped, y_pred)
     loss = tf.reduce_mean(loss)
