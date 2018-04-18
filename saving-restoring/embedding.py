@@ -118,5 +118,14 @@ with tf.name_scope("layer2"):
     # Second hidden layer.[batch_size x embedding_dim]
     logits =tf.matmul(h1, W2) + b2
 
+
+with tf.name_scope("output"):
     # [batch_size x nb_tokens]
     y_pred = tf.matmul(logits, tf.transpose((embedding)))
+    y_pred_cls = tf.argmax(y_pred, axis=1)
+
+
+with tf.name_scope("loss"):
+    y_reshaped = tf.reshape(y, shape=[-1])
+    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(None, y_reshaped, y_pred)
+    loss = tf.reduce_mean(loss)
