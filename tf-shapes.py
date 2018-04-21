@@ -33,7 +33,6 @@ my_placeholder.set_shape([8, 2])
 print('AFTER: my_placeholder.get_shape() = {}'.format(
     my_placeholder.get_shape()))
 
-
 # Line divider.
 print('\n\n', 70 * '=', '\n\n')
 
@@ -54,16 +53,3 @@ print('my_tensor_reshaped = {}'.format(my_tensor_reshaped))
 # To access the dynamic shape's value, you need to run it through a Session
 dynamic_value = my_dynamic_shape.eval(session=tf.Session())
 print(dynamic_value)
-
-
-
-
-
-
-
-
-
-
-
-
-
