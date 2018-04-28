@@ -23,3 +23,8 @@ class Model:
             cell_fn = rnn.NASCell
         else:
             raise ValueError("Model type not supported.")
+
+        cells = []
+        for _ in range(self.args.num_layers):
+            cell = cell_fn(self.args.rnn_size)
+            
