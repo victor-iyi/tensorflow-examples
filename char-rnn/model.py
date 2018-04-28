@@ -26,29 +26,29 @@ class Model:
 
         # Set batch size & sequence length to 1 if not in traiing mode.
         if not training:
-            self.args.batch_size = 1
-            self.args.seq_length = 1
+            args.batch_size = 1
+            args.seq_length = 1
 
         # Recurrent Architecture.
-        if self.args.model.lower() == 'rnn':
+        if args.model.lower() == 'rnn':
             cell_fn = rnn.BasicRNNCell
-        elif self.args.model.lower() == 'lstm':
+        elif args.model.lower() == 'lstm':
             cell_fn = rnn.BasicLSTMCell
-        elif self.args.model.lower() == 'gru':
+        elif args.model.lower() == 'gru':
             cell_fn = rnn.GRUCell
-        elif self.args.model.lower() == 'nas':
+        elif args.model.lower() == 'nas':
             cell_fn = rnn.NASCell
         else:
             raise ValueError("Model type not supported.")
 
         cells = []
-        for _ in range(self.args.num_layers):
-            cell = cell_fn(self.args.rnn_size)
+        for _ in range(args.num_layers):
+            cell = cell_fn(args.rnn_size)
 
             # Add dropout only during training.
-            if training and (self.args.input_keep_probs < 1.0 or self.args.output_keep_probs < 1.0):
+            if training and (args.input_keep_probs < 1.0 or args.output_keep_probs < 1.0):
                 cell = rnn.DropoutWrapper(cell,
-                                          input_keep_prob=self.args.input_keep_prob, output_keep_prob=self.args.output_keep_prob)
+                                          input_keep_prob=args.input_keep_prob, output_keep_prob=args.output_keep_prob)
 
             # Append the hidden cell.
             cells.append(cell)
@@ -58,8 +58,28 @@ class Model:
 
         # Model placeholders
         self.input_data = tf.placeholder(dtype=tf.int32,
-                                         shape=[self.args.batch_size, self.args.seq_length])
+                                         shape=[args.batch_size, args.seq_length])
         self.targets = tf.placeholder(dtype=tf.int32,
-                                      shape=[self.args.batch_size, self.args.seq_length])
-        self.initial_state = cell.zero_state(self.args.batch_size,
+                                      shape=[args.batch_size, args.seq_length])
+        self.initial_state = cell.zero_state(args.batch_size,
                                              dtype=tf.int32)
+
+        # Recurrent Neural Net Language Modelling.
+        with tf.variable_scope(name='rnnlm'):
+            softmax_W = tf.get_variable(name='softmax_W',
+                                        shape=[args.rnn_size, args.vocab_size])
+            softmax_b = tf.get_variable(name='softmax_b',
+                                        shape=[args.vocab_size])
+
+        # Embeddings.
+        embedding = tf.get_variable('embedding',
+                                    shape=[args.vocab_size, args.rnn_size])
+        inputs = tf.nn.embedding_lookup(embedding, self.input_data)
+
+        # Dropout input embeddings.
+        if training:
+            inputs = tf.nn.dropout(inputs, keep_prob=args.input_keep_prob)
+        
+        inputs = tf.split(axis=1, value=inputs, num_split=args.seq_length)
+        inputs = [tf.squeeze(input_, axis=[1]) for input_ in inputs]
+
