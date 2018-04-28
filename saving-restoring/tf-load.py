@@ -1,4 +1,4 @@
-"""Using pretrained graph in new graph.
+"""Using pre-trained graph in new graph.
 """
 import os
 

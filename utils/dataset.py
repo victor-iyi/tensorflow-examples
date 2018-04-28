@@ -12,8 +12,8 @@ def fake_data(n, size=28, channels=1):
             data points to be generated.
 
     Keyword Arguments:
-        size {int} -- widthxheight of the generated data.
-            Note that the data will have the same hieght and width
+        size {int} -- width x height of the generated data.
+            Note that the data will have the same height and width
             for simplicity. (default: {28})
 
         channels {int} -- How many color channels. (default: {1})
@@ -79,7 +79,7 @@ def gen_data(file, max=50):
                 code = open(_file, 'r', encoding='utf-8').read()
                 handle.write(str(code) + '\n')
             except Exception as e:
-                print('Exception: {e}'.format(e))
+                print('Exception: {}'.format(e))
 
         counter += 1
         if counter > max:
