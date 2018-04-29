@@ -1,4 +1,4 @@
-from supress import *
+from .suppress import *
 
 from tensorflow.contrib import rnn
 from tensorflow.contrib import legacy_seq2seq
@@ -7,8 +7,7 @@ import numpy as np
 
 
 class Model:
-    """Multi-layer Recurrent Neural Networks (LSTM, RNN) for
-    character-level language models.
+    """Multi-layer Recurrent Neural Networks (LSTM, RNN) for character-level language models.
 
     To learn more about character-rnn,
     Visit Andrej Karpathy's [char-rnn](https://github.com/karpathy/char-rnn).
@@ -27,7 +26,7 @@ class Model:
     def __init__(self, args, training=True):
         self.args = args
 
-        # Set batch size & sequence length to 1 if not in traiing mode.
+        # Set batch size & sequence length to 1 if not in training mode.
         if not training:
             args.batch_size = 1
             args.seq_length = 1
@@ -45,7 +44,9 @@ class Model:
             raise ValueError("Model type not supported.")
 
         # Construct the hidden layers' cell.
+        cell = None
         cells = []
+
         for _ in range(args.num_layers):
             cell = cell_fn(args.rnn_size)
 
@@ -62,18 +63,17 @@ class Model:
 
         # Model placeholders.
         self.input_data = tf.placeholder(
-                                    dtype=tf.int32,
-                                    shape=[args.batch_size, args.seq_length],
-                                    name="input_data")
+            dtype=tf.int32,
+            shape=[args.batch_size, args.seq_length],
+            name="input_data")
         self.targets = tf.placeholder(
-                                    dtype=tf.int32,
-                                    shape=[args.batch_size, args.seq_length],
-                                    name="targets")
-        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32,
-                                                    name="initial_state")
+            dtype=tf.int32,
+            shape=[args.batch_size, args.seq_length],
+            name="targets")
+        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32)
 
         # Recurrent Neural Net Language Modelling.
-        with tf.variable_scope(name='rnnlm'):
+        with tf.variable_scope('rnnlm'):
             softmax_W = tf.get_variable(name='softmax_W',
                                         shape=[args.rnn_size, args.vocab_size])
             softmax_b = tf.get_variable(name='softmax_b',
@@ -94,7 +94,10 @@ class Model:
 
         def loop(prev, _):
             """Function to be performed at each recurrent layer.
-            This function will be applied to the i-th output in order to generate the i+1-st input, and decoder_inputs will be ignored, except for the first element ("GO" symbol). This can be used for decoding, but also for training to  emulate http://arxiv.org/abs/1506.03099.
+
+            This function will be applied to the i-th output in order to generate the i+1-st input, and
+            decoder_inputs will be ignored, except for the first element ("GO" symbol). This can be used
+             for decoding, but also for training to  emulate http://arxiv.org/abs/1506.03099.
 
             Signature -- loop_function(prev, i) = next
                     * prev is a 2D Tensor of shape [batch_size x output_size],
@@ -107,30 +110,31 @@ class Model:
                 _ {tf.Tensor} -- i is an integer, the step number (when advanced control is needed).
 
             Returns:
-                {tf.Tensor} -- A 2D Tensor of shape [batch_size, input_size] which represents the embedding matrix of the predicted next character.
+                {tf.Tensor} -- A 2D Tensor of shape [batch_size, input_size] which represents
+                the embedding matrix of the predicted next character.
             """
             prev = tf.matmul(prev, softmax_W) + softmax_b
-            prev_symbol = tf.stop_gradient(input=tf.arg_max(prev, dimension=1)))
+            prev_symbol = tf.stop_gradient(input=tf.arg_max(prev, dimension=1))
             return tf.embedding_lookup(embedding, prev_symbol)
 
         # Decoder.
-        outputs, prev_state=legacy_seq2seq.rnn_decoder(inputs, self.initial_state,
-                                                                    loop_function = loop if not training else None,
-                                                                    scope = 'rnnlm')
+        outputs, prev_state = legacy_seq2seq.rnn_decoder(inputs, self.initial_state, cell,
+                                                         loop_function=loop if not training else None,
+                                                         scope='rnnlm')
 
-        outputs=tf.reshape(tf.concat(outputs, axis=1),
-                           shape = [-1, args.rnn_size])
+        outputs = tf.reshape(tf.concat(outputs, axis=1),
+                             shape=[-1, args.rnn_size])
 
         # Fully connected & softmax layer.
-        self.logits=tf.matmul(outputs, softmax_W) + softmax_b
-        self.probs=tf.nn.softmax(self.logits, name = "probs")
+        self.logits = tf.matmul(outputs, softmax_W) + softmax_b
+        self.probs = tf.nn.softmax(self.logits, name="probs")
 
         # Loss function.
         with tf.variable_scope('loss'):
             seq_loss = legacy_seq2seq.sequence_loss_by_example(
-                                    logits = self.logits, 
-                                    targets = tf.reshape(self.targets, shape=[-1]), 
-                                    weights =[tf.ones(shape=[args.batch_size * args.seq_length])])
+                logits=self.logits,
+                targets=tf.reshape(self.targets, shape=[-1]),
+                weights=[tf.ones(shape=[args.batch_size * args.seq_length])])
 
             self.loss = tf.reduce_sum(seq_loss) / args.batch_size / args.seq_length
 
@@ -141,25 +145,25 @@ class Model:
         # Trainable variables & gradient clipping.
         tvars = tf.trainable_variables()
         grads, _ = tf.clip_by_global_norm(t_list=tf.gradients(self.loss, tvars),
-                                                    clip_norm=args.grad_clip)
+                                          clip_norm=args.grad_clip)
 
         # Optimizer.
         with tf.variable_scope("optimizer"):
             self.global_step = tf.Variable(0, trainable=False, name="global_step")
             optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
-        
+
         # Train ops.
         self.train_op = optimizer.apply_gradients(grads_and_vars=zip(grads, tvars),
-                                                             global_step=self.global_step, 
-                                                             name="train_op")
+                                                  global_step=self.global_step,
+                                                  name="train_op")
 
         # Tensorboard.
         tf.summary.histogram('logits', self.logits)
         tf.summary.histogram('seq_loss', seq_loss)
         tf.summary.scalar('loss', self.loss)
 
-    def sample(self, sess:tf.Session, chars:tuple, vocab:dict, 
-                  num:int=200, prime:str='The', sampling_type:int=1):
+    def sample(self, sess: tf.Session, chars: tuple, vocab: dict,
+               num: int = 200, prime: str = 'The', sampling_type: int = 1):
         # Initial cell state. TODO: Change dtype=tf.float32
         state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
 
