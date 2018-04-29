@@ -70,7 +70,8 @@ class Model:
             dtype=tf.int32,
             shape=[args.batch_size, args.seq_length],
             name="targets")
-        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32)
+        self.initial_state = cell.zero_state(
+            batch_size=args.batch_size, dtype=tf.int32)
 
         # Recurrent Neural Net Language Modelling.
         with tf.variable_scope('rnnlm'):
@@ -136,7 +137,8 @@ class Model:
                 targets=tf.reshape(self.targets, shape=[-1]),
                 weights=[tf.ones(shape=[args.batch_size * args.seq_length])])
 
-            self.loss = tf.reduce_sum(seq_loss) / args.batch_size / args.seq_length
+            self.loss = tf.reduce_sum(seq_loss) / \
+                args.batch_size / args.seq_length
 
         self.final_state = prev_state
 
@@ -149,7 +151,8 @@ class Model:
 
         # Optimizer.
         with tf.variable_scope("optimizer"):
-            self.global_step = tf.Variable(0, trainable=False, name="global_step")
+            self.global_step = tf.Variable(
+                0, trainable=False, name="global_step")
             optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
 
         # Train ops.
@@ -164,6 +167,22 @@ class Model:
 
     def sample(self, sess: tf.Session, chars: tuple, vocab: dict,
                num: int = 200, prime: str = 'The', sampling_type: int = 1):
+               """Sample from the prediction probability one character at a time.
+
+               Arguments:
+                   sess {tf.Session} -- Session containing the default graph.
+                   chars {tuple} -- List of charaters in the vocab.
+                   vocab {dict} -- Mapping from character to id. Dictionary containing characters & corresponding numberic value.
+
+               Keyword Arguments:
+                   num {int} -- Number of character to predict. (default: {200})
+                   prime {str} -- Begining of prediction sequence. (default: {'The'})
+                   sampling_type {int} -- Description of how to choose the top most likely character. Options are 1, 2, & 3. (default: {1})
+
+                Returns:
+                    ret {str} -- Sequence containing the prediction of the `num` characters.
+               """
+
         # Initial cell state. TODO: Change dtype=tf.float32
         state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
 
@@ -176,3 +195,41 @@ class Model:
             # Given input data & initial state, predict final state.
             feed_dict = {self.input_data: x, self.initial_state: state}
             [state] = sess.run([self.final_state], feed_dict=feed_dict)
+
+        def weighted_pick(weights):
+            c = np.cumsum(weights)
+            s = np.sum(weights)
+            return int(np.searchsorted(c, np.random.rand(1) * s))
+
+        # Initial character.
+        ret = prime
+        char = prime[-1]
+
+        # Prediction loop.
+        for i in range(num):
+            x = np.zeros(shape-(1, 1))
+            x[0, 0] = vocab[char]
+
+            # Predict probability of next word & prev state.
+            feed_dict = {self.input_data: x, self.initial_state: state}
+            [probs, state] = sess.run(
+                [self.probs, self.final_state], feed_dict=feed_dict)
+
+            p = probs[0]
+
+            if sampling_type == 0:
+                sample = np.argmax(p)
+            elif sampling_type == 2:
+                if char == ' ':
+                    sample = weighted_pick(p)
+                else:
+                    sample = np.argmax(p)
+            else:  # Sampling type = 1 (default)
+                sample = weighted_pick(p)
+
+            # Get the character representation of sampled character.
+            pred = chars[sample]
+            ret += pred
+            char = pred
+        
+        return ret
