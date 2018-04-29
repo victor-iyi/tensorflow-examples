@@ -4,10 +4,10 @@ from tensorflow.contrib import rnn
 
 
 class Model:
-    """Multi-layer Recurrent Neural Networks (LSTM, RNN) for 
+    """Multi-layer Recurrent Neural Networks (LSTM, RNN) for
     character-level language models.
 
-    To learn more about character-rnn, 
+    To learn more about character-rnn,
     Visit Andrej Karpathy's [char-rnn](https://github.com/karpathy/char-rnn).
 
     Arguments:
@@ -41,6 +41,7 @@ class Model:
         else:
             raise ValueError("Model type not supported.")
 
+        # Construct the hidden layers' cell.
         cells = []
         for _ in range(args.num_layers):
             cell = cell_fn(args.rnn_size)
@@ -79,7 +80,27 @@ class Model:
         # Dropout input embeddings.
         if training:
             inputs = tf.nn.dropout(inputs, keep_prob=args.input_keep_prob)
-        
+
         inputs = tf.split(axis=1, value=inputs, num_split=args.seq_length)
         inputs = [tf.squeeze(input_, axis=[1]) for input_ in inputs]
 
+        def loop(prev, _):
+            """Function to be performed at each recurrent layer.
+            This function will be applied to the i-th output in order to generate the i+1-st input, and decoder_inputs will be ignored, except for the first element ("GO" symbol). This can be used for decoding, but also for training to  emulate http://arxiv.org/abs/1506.03099.
+
+            Signature -- loop_function(prev, i) = next
+                    * prev is a 2D Tensor of shape [batch_size x output_size],
+                    * i is an integer, the step number (when advanced control is needed),
+                    * next is a 2D Tensor of shape [batch_size x input_size].
+                scope: VariableScope for the created subgraph; defaults to "rnn_decoder".
+
+            Arguments:
+                prev {tf.Tensor} -- prev is a 2D Tensor of shape [batch_size x output_size].
+                _ {tf.Tensor} -- i is an integer, the step number (when advanced control is needed).
+
+            Returns:
+                {tf.Tensor} -- A 2D Tensor of shape [batch_size, input_size] which represents the embedding matrix of the predicted next character.
+            """
+            prev = tf.matmul(prev, softmax_W) + softmax_b
+            prev_symbol = tf.stop_gradient(input=tf.arg_max(prev, dimension=1)))
+            return tf.embedding_lookup(embedding, prev_symbol)
