@@ -1,6 +1,9 @@
 from supress import *
 
 from tensorflow.contrib import rnn
+from tensorflow.contrib import legacy_seq2seq
+
+import numpy as np
 
 
 class Model:
@@ -57,13 +60,17 @@ class Model:
         # Recurrent Cell.
         self.cell = rnn.MultiRNNCell(cell, state_is_tuple=True)
 
-        # Model placeholders
-        self.input_data = tf.placeholder(dtype=tf.int32,
-                                         shape=[args.batch_size, args.seq_length])
-        self.targets = tf.placeholder(dtype=tf.int32,
-                                      shape=[args.batch_size, args.seq_length])
-        self.initial_state = cell.zero_state(args.batch_size,
-                                             dtype=tf.int32)
+        # Model placeholders.
+        self.input_data = tf.placeholder(
+                                    dtype=tf.int32,
+                                    shape=[args.batch_size, args.seq_length],
+                                    name="input_data")
+        self.targets = tf.placeholder(
+                                    dtype=tf.int32,
+                                    shape=[args.batch_size, args.seq_length],
+                                    name="targets")
+        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32,
+                                                    name="initial_state")
 
         # Recurrent Neural Net Language Modelling.
         with tf.variable_scope(name='rnnlm'):
@@ -81,6 +88,7 @@ class Model:
         if training:
             inputs = tf.nn.dropout(inputs, keep_prob=args.input_keep_prob)
 
+        # Split & reshape inputs.
         inputs = tf.split(axis=1, value=inputs, num_split=args.seq_length)
         inputs = [tf.squeeze(input_, axis=[1]) for input_ in inputs]
 
@@ -104,3 +112,63 @@ class Model:
             prev = tf.matmul(prev, softmax_W) + softmax_b
             prev_symbol = tf.stop_gradient(input=tf.arg_max(prev, dimension=1)))
             return tf.embedding_lookup(embedding, prev_symbol)
+
+        # Decoder.
+        outputs, prev_state=legacy_seq2seq.rnn_decoder(inputs, self.initial_state,
+                                                                    loop_function = loop if not training else None,
+                                                                    scope = 'rnnlm')
+
+        outputs=tf.reshape(tf.concat(outputs, axis=1),
+                           shape = [-1, args.rnn_size])
+
+        # Fully connected & softmax layer.
+        self.logits=tf.matmul(outputs, softmax_W) + softmax_b
+        self.probs=tf.nn.softmax(self.logits, name = "probs")
+
+        # Loss function.
+        with tf.variable_scope('loss'):
+            seq_loss = legacy_seq2seq.sequence_loss_by_example(
+                                    logits = self.logits, 
+                                    targets = tf.reshape(self.targets, shape=[-1]), 
+                                    weights =[tf.ones(shape=[args.batch_size * args.seq_length])])
+
+            self.loss = tf.reduce_sum(seq_loss) / args.batch_size / args.seq_length
+
+        self.final_state = prev_state
+
+        self.lr = tf.Variable(0.0, trainable=False, name="learning_rate")
+
+        # Trainable variables & gradient clipping.
+        tvars = tf.trainable_variables()
+        grads, _ = tf.clip_by_global_norm(t_list=tf.gradients(self.loss, tvars),
+                                                    clip_norm=args.grad_clip)
+
+        # Optimizer.
+        with tf.variable_scope("optimizer"):
+            self.global_step = tf.Variable(0, trainable=False, name="global_step")
+            optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
+        
+        # Train ops.
+        self.train_op = optimizer.apply_gradients(grads_and_vars=zip(grads, tvars),
+                                                             global_step=self.global_step, 
+                                                             name="train_op")
+
+        # Tensorboard.
+        tf.summary.histogram('logits', self.logits)
+        tf.summary.histogram('seq_loss', seq_loss)
+        tf.summary.scalar('loss', self.loss)
+
+    def sample(self, sess:tf.Session, chars:tuple, vocab:dict, 
+                  num:int=200, prime:str='The', sampling_type:int=1):
+        # Initial cell state. TODO: Change dtype=tf.float32
+        state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
+
+        # Predict final state given input data & prev state.
+        for char in prime[:-1]:
+            # Input data: one char at a time.
+            x = np.zeros(shape=(1, 1))
+            x[0, 0] = vocab[char]
+
+            # Given input data & initial state, predict final state.
+            feed_dict = {self.input_data: x, self.initial_state: state}
+            [state] = sess.run([self.final_state], feed_dict=feed_dict)
