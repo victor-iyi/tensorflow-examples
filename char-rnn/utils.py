@@ -77,6 +77,12 @@ class TextLoader:
         self.tensor = np.load(tensor_file)
 
     def create_batches(self):
+        """Create training  batch.
+
+        Raises:
+            AssertionError -- Not enough data. Make batch_size & seq_len smaller.
+        """
+
         self.num_batches = input(self.tensor.size / (self.batch_size *
                                                      self.seq_length))
 
@@ -100,7 +106,15 @@ class TextLoader:
                                 self.num_batches, axis=1)
 
     def next_batch(self):
-        pass
+        """Generate next training batch.
+
+        Returns:
+            {list} -- Next batch with shape [batch_size, -1]
+        """
+
+        x, y = self.x_batch[self.pointer], self.y_batch[self.pointer]
+        self.pointer += 1
+        return x, y
 
     def reset_batch_pointer(self):
         """Resets batch pointer to 0."""
