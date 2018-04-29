@@ -3,10 +3,9 @@ import argparse
 
 def main():
     # Argument parser.
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
-    # Command line arguements.
+    # Command line arguments.
     parser.add_argument('--data_dir', type=str, default='data/pycode',
                         help='Data directory containing input.txt')
     parser.add_argument('--save_dir', type=str, default='save',
@@ -38,12 +37,14 @@ def main():
     parser.add_argument('--output_keep_prob', type=float, default=1.0,
                         help='Probability of keeping weights in the output layer.')
     parser.add_argument('--init_from', type=str, default=None,
-                        help="""continue training from saved model at this path. Path must contain files saved by previous training process:
-                            'config.pkl'        : configuration;
-                            'chars_vocab.pkl'   : vocabulary definitions;
-                            'checkpoint'        : paths to model file(s) (created by tf).
-                                                  Note: this file contains absolute paths, be careful when moving files around;
-                            'model.ckpt-*'      : file(s) with model definition (created by tf)""")
+                        help="""Continue training from saved model at this path. 
+                        Path must contain files saved by previous training process:
+                            'config.pkl'        : Configuration;
+                            'chars_vocab.pkl'   : Vocabulary definitions;
+                            'checkpoint'        : Paths to model file(s) (created by tf).
+                                                  Note: This file contains absolute paths, be careful when 
+                                                        moving files around;
+                            'model.ckpt-*'      : File(s) with model definition (created by tf)""")
 
     # Parse the arguments.
     args = parser.parse_args()

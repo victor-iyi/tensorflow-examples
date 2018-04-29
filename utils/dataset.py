@@ -1,7 +1,6 @@
 import os
 
 import numpy as np
-import matplotlib.pyplot as plt
 
 
 def fake_data(n, size=28, channels=1):
@@ -42,8 +41,9 @@ def fake_data(n, size=28, channels=1):
     return data, labels
 
 
-def gen_data(file, max=50):
+def gen_data(file, max_files=50):
     """Generate a Python code dataset.
+
     Using the builtin standard libraries as a reference.
     It works by combining {max} number of the reference files.
 
@@ -51,11 +51,11 @@ def gen_data(file, max=50):
         file {str} -- Name of the file to be written into.
 
     Keyword Arguments:
-        max {int} -- Maximum number of files to join. (default: {50})
+        max_files {int} -- Maximum number of files to join. (default: {50})
 
     Example:
         >>> data_path = 'datasets/python_code.py'
-        >>> gen_data(data_path, max=20)
+        >>> gen_data(data_path, max_files=20)
         >>> os.path.isfile(data_path)
         True
     """
@@ -82,7 +82,7 @@ def gen_data(file, max=50):
                 print('Exception: {}'.format(e))
 
         counter += 1
-        if counter > max:
+        if counter > max_files:
             break
 
 

@@ -16,7 +16,7 @@ class Model:
         args {argparse.ArgumentParser} -- Command line arguments from train.py
 
     Keyword Arguments:
-        training {bool} -- [Training mode.] (default: {True})
+        training {bool} -- Training mode. (default: {True})
 
     Raises:
         ValueError -- Model type not supported. Supported types include:
