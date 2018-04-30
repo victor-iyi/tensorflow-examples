@@ -137,8 +137,7 @@ class Model:
                 targets=tf.reshape(self.targets, shape=[-1]),
                 weights=[tf.ones(shape=[args.batch_size * args.seq_length])])
 
-            self.loss = tf.reduce_sum(seq_loss) / \
-                args.batch_size / args.seq_length
+            self.loss = tf.reduce_sum(seq_loss) / args.batch_size / args.seq_length
 
         self.final_state = prev_state
 
@@ -167,26 +166,25 @@ class Model:
 
     def sample(self, sess: tf.Session, chars: tuple, vocab: dict,
                num: int = 200, prime: str = 'The', sampling_type: int = 1):
-               """Sample from the prediction probability one character at a time.
+        """Sample from the prediction probability one character at a time.
 
-               Arguments:
-                   sess {tf.Session} -- Session containing the default graph.
-                   chars {tuple} -- List of charaters in the vocab.
-                   vocab {dict} -- Mapping from character to id. Dictionary containing characters & corresponding numberic value.
+        Arguments:
+            sess {tf.Session} -- Session containing the default graph.
+            chars {tuple} -- List of characters in the vocab.
+            vocab {dict} -- Mapping from character to id. Dictionary containing characters & corresponding numeric
+            value.
 
-               Keyword Arguments:
-                   num {int} -- Number of character to predict. (default: {200})
-                   prime {str} -- Begining of prediction sequence. (default: {'The'})
-                   sampling_type {int} -- Description of how to choose the top most likely character. Options are 1, 2, & 3. (default: {1})
+        Keyword Arguments: num {int} -- Number of character to predict. (default: {200}) prime {str} -- Beginning of
+        prediction sequence. (default: {'The'}) sampling_type {int} -- Description of how to choose the top most
+        likely character. Options are 1, 2, & 3. (default: {1})
 
-                Returns:
-                    ret {str} -- Sequence containing the prediction of the `num` characters.
-               """
+         Returns:
+             ret {str} -- Sequence containing the prediction of the `num` characters.
+        """
 
         # Initial cell state. TODO: Change dtype=tf.float32
-        state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
-
         # Predict final state given input data & prev state.
+        state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
         for char in prime[:-1]:
             # Input data: one char at a time.
             x = np.zeros(shape=(1, 1))
@@ -207,7 +205,7 @@ class Model:
 
         # Prediction loop.
         for i in range(num):
-            x = np.zeros(shape-(1, 1))
+            x = np.zeros(shape=(1, 1))
             x[0, 0] = vocab[char]
 
             # Predict probability of next word & prev state.
@@ -231,5 +229,5 @@ class Model:
             pred = chars[sample]
             ret += pred
             char = pred
-        
+
         return ret

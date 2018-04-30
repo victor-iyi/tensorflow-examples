@@ -1,9 +1,12 @@
 import argparse
 
+from .utils import TextLoader
+
 
 def main():
     # Argument parser.
-    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Command line arguments.
     parser.add_argument('--data_dir', type=str, default='data/pycode',
@@ -54,7 +57,8 @@ def main():
 
 
 def train(args):
-    pass
+    data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
+    data_loader.vocab_size = args.vocab_size
 
 
 if __name__ == '__main__':

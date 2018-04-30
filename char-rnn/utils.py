@@ -25,6 +25,7 @@ class TextLoader:
         else:
             # Load pre-processed files.
             print('Loading pre-processed files...')
+            self.load_preprocessed(vocab_file=vocab_file, tensor_file=tensor_file)
 
         # Create batches & set batch pointer to 0.
         self.create_batches()
@@ -49,7 +50,7 @@ class TextLoader:
         # List of tuples: [(' ', 14), ('e', 18), ..., ('m', 1)]
         count_pairs = sorted(counter.items(), key=lambda x: -x[1])
 
-        # Extract the characters: reteurns tuple of chars.
+        # Extract the characters: returns tuple of chars.
         self.chars, _ = zip(*count_pairs)
 
         # Number of characters in the dataset.
@@ -58,7 +59,7 @@ class TextLoader:
         # Mapping from char to id or vocab.
         self.vocab = {c: i for i, c in enumerate(self.chars)}
         with open(vocab_file, mode='wb') as f:
-            pickle.dump(self.vocab)
+            pickle.dump(self.vocab, f)
 
         # Numeric representation of dataset.
         self.tensor = np.array(list(map(self.vocab.get, data)))
@@ -71,7 +72,7 @@ class TextLoader:
 
         # Create vocab dictionary. & size of all unique characters.
         self.vocab_size = len(self.chars)
-        self.vocab = {c: i for i, c in enuemrate(self.chars)}
+        self.vocab = {c: i for i, c in enumerate(self.chars)}
 
         # Numeric representation of dataset.
         self.tensor = np.load(tensor_file)
@@ -92,7 +93,7 @@ class TextLoader:
                 "Not enough data. Make batch_size & seq_length small.")
 
         self.tensor = self.tensor[:self.num_batches *
-                                  self.batch_size * self.seq_length]
+                                   self.batch_size * self.seq_length]
 
         x_data = self.tensor
         y_data = np.copy(self.tensor)
