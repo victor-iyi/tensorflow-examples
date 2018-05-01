@@ -1,12 +1,15 @@
 import argparse
+import os
+import pickle
 
+from .suppress import *
 from .utils import TextLoader
+from .model import Model
 
 
 def main():
     # Argument parser.
-    parser = argparse.ArgumentParser(
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Command line arguments.
     parser.add_argument('--data_dir', type=str, default='data/pycode',
@@ -57,8 +60,60 @@ def main():
 
 
 def train(args):
+    # Load dataset.
     data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
     data_loader.vocab_size = args.vocab_size
+
+    # Check if training can be continued from previously saved model.
+    if args.init_from is not None:
+        # Assert all necessary files exists.
+        assert os.path.isdir(args.init_from), "{} doesn't exist.".format(args.init_from)
+
+        assert os.path.exists(os.path.join(args.init_from, "config.pkl")), \
+            "config.pkl doesn't exist in path {}".format(args.init_from)
+
+        assert os.path.exists(os.path.join(args.init_from, "chars_vocab.pkl")), \
+            "chars_vocab.pkl doesn't exist in path {}".format(args.init_from)
+
+        # Get the state of checkpoint to be loaded.
+        ckpt = tf.train.get_checkpoint_state(args.init_from)
+        assert ckpt, "No checkpoint found!"
+        assert ckpt.model_checkpoint_path, "model.ckpt-* not found in path {}".format(args.init_from)
+
+        # Open config file and verify model compatibility.
+        with open(os.path.join(args.init_from, "config.pkl"), mode="rb") as f:
+            saved_model_args = pickle.load(f)
+
+        # List of meta data that needs to be the same
+        need_be_same = ["model", "rnn_size", "num_layers", "seq_length"]
+
+        for check_me in need_be_same:
+            assert vars(saved_model_args)[check_me] == vars(args)[check_me], \
+                "Saved model & command line arguments of {} aren't compatible!".format(check_me)
+
+        # Load saved chars & vocab and check for compatibility.
+        with open(os.path.join(args.init_from, "chars_vocab.pkl"), mode="rb") as f:
+            saved_chars, saved_vocab = pickle.load(f)
+
+        assert saved_chars == data_loader.chars, "Data and character set aren't compatible!"
+        assert saved_vocab == data_loader.vocab, "Data and loaded dictionary mappings aren't compatible!"
+
+    # Create save directory if it doesn't exist.
+    if not os.path.isdir(args.save_dir):
+        os.makedirs(args.save_dir)
+
+    # Write the command line arguments into config file.
+    with open(os.path.join(args.save_dir, "config.pkl"), mode="wb") as f:
+        pickle.dump(args, f)
+
+    # Save character set and dictionary mappings
+    with open(os.path.join(args.save_dir, "chars_vocab.pkl"), mode="wb") as f:
+        pickle.dump((data_loader.chars, data_loader.vocab), f)
+
+    # Define the model.
+    # model = Model(args, training=True)
+
+    # Start TensorFlow session. (with the default graph).
 
 
 if __name__ == '__main__':
