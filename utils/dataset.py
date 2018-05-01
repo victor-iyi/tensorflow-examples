@@ -28,9 +28,7 @@ def fake_data(n, size=28, channels=1):
         >>> y.shape
         (128,)
     """
-
-    data = np.ndarray(shape=[n, size, size, channels],
-                      dtype=np.float32)
+    data = np.ndarray(shape=[n, size, size, channels], dtype=np.float32)
     labels = np.zeros(shape=(n,), dtype=np.int64)
 
     for i in range(n):
@@ -41,7 +39,7 @@ def fake_data(n, size=28, channels=1):
     return data, labels
 
 
-def gen_data(file, max_files=50):
+def gen_data(file: str, max_files: int = 50):
     """Generate a Python code dataset.
 
     Using the builtin standard libraries as a reference.
@@ -54,34 +52,36 @@ def gen_data(file, max_files=50):
         max_files {int} -- Maximum number of files to join. (default: {50})
 
     Example:
-        >>> data_path = 'datasets/python_code.py'
+        >>> data_path = 'datasets/pycode/input.txt'
         >>> gen_data(data_path, max_files=20)
         >>> os.path.isfile(data_path)
         True
     """
+    PYTHON_HOME = '/Library/Frameworks/Python.framework/Versions/3.6/lib/python3.6/'
 
-    PYTHON_HOME = os.path.join('/Library/Frameworks/Python.framework',
-                               'Versions/3.6/lib/python3.6/')
+    # Clean the directory.
     if os.path.isfile(file):
         import shutil
         shutil.rmtree(os.path.dirname(file))
 
+    # Create data directories.
     if not os.path.isdir(os.path.dirname(file)):
         os.makedirs(os.path.dirname(file))
-
-    handle = open(file, 'a', encoding='utf-8')
 
     counter = 0
     for (root, _, files) in os.walk(PYTHON_HOME):
         files = [os.path.join(root, f) for f in files if f.endswith('.py')]
         for _file in files:
-            try:
-                code = open(_file, 'r', encoding='utf-8').read()
-                handle.write(str(code) + '\n')
-            except Exception as e:
-                print('Exception: {}'.format(e))
+            with open(file, mode='a', encoding='utf-8') as handle:
+                try:
+                    code = open(_file, 'r', encoding='utf-8').read()
+                    handle.write("{}\n\n".format(code))
+                except Exception as e:
+                    print('EXCEPTION: {}'.format(e))
 
         counter += 1
+
+        # End loop if reached specified maximum number of files.
         if counter > max_files:
             break
 

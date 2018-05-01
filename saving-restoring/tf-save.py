@@ -44,7 +44,7 @@ with tf.Session() as sess:
     # Initialize all global variables.
     # sess.run(init_op)
     
-    # Initialize only v1, since we're goning to be restoring v2.
+    # Initialize only v1, since we're going to be restoring v2.
     v1.initializer.run()
 
     # We save variables after creating a Session object.
@@ -52,7 +52,7 @@ with tf.Session() as sess:
 
     # Or you can save a handful of variables.
     # NOTE: v2 is in the default graph, that's why we can pass the
-    # current Session because it handles the default graph as weell.`
+    # current Session because it handles the default graph as well.`
     v2_saver.restore(sess, os.path.join(save_dir, 'v2-var.ckpt'))
 
     print('v1.eval() = {}'.format(v1.eval()))
