@@ -63,27 +63,17 @@ class Model:
         self.cell = rnn.MultiRNNCell(cell, state_is_tuple=True)
 
         # Model placeholders.
-        self.input_data = tf.placeholder(
-            dtype=tf.int32,
-            shape=[args.batch_size, args.seq_length],
-            name="input_data")
-        self.targets = tf.placeholder(
-            dtype=tf.int32,
-            shape=[args.batch_size, args.seq_length],
-            name="targets")
-        self.initial_state = cell.zero_state(
-            batch_size=args.batch_size, dtype=tf.int32)
+        self.input_data = tf.placeholder(dtype=tf.int32, shape=[args.batch_size, args.seq_length], name="input_data")
+        self.targets = tf.placeholder(dtype=tf.int32, shape=[args.batch_size, args.seq_length], name="targets")
+        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32)
 
         # Recurrent Neural Net Language Modelling.
         with tf.variable_scope('rnnlm'):
-            softmax_W = tf.get_variable(name='softmax_W',
-                                        shape=[args.rnn_size, args.vocab_size])
-            softmax_b = tf.get_variable(name='softmax_b',
-                                        shape=[args.vocab_size])
+            softmax_W = tf.get_variable(name='softmax_W', shape=[args.rnn_size, args.vocab_size])
+            softmax_b = tf.get_variable(name='softmax_b', shape=[args.vocab_size])
 
         # Embeddings.
-        embedding = tf.get_variable('embedding',
-                                    shape=[args.vocab_size, args.rnn_size])
+        embedding = tf.get_variable('embedding', shape=[args.vocab_size, args.rnn_size])
         inputs = tf.nn.embedding_lookup(embedding, self.input_data)
 
         # Dropout input embeddings.
@@ -124,8 +114,7 @@ class Model:
                                                          loop_function=loop if not training else None,
                                                          scope='rnnlm')
 
-        outputs = tf.reshape(tf.concat(outputs, axis=1),
-                             shape=[-1, args.rnn_size])
+        outputs = tf.reshape(tf.concat(outputs, axis=1), shape=[-1, args.rnn_size])
 
         # Fully connected & softmax layer.
         self.logits = tf.matmul(outputs, softmax_W) + softmax_b
@@ -151,8 +140,7 @@ class Model:
 
         # Optimizer.
         with tf.variable_scope("optimizer"):
-            self.global_step = tf.Variable(
-                0, trainable=False, name="global_step")
+            self.global_step = tf.Variable(0, trainable=False, name="global_step")
             optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
 
         # Train ops.
@@ -211,8 +199,7 @@ class Model:
 
             # Predict probability of next word & prev state.
             feed_dict = {self.input_data: x, self.initial_state: state}
-            [probs, state] = sess.run(
-                [self.probs, self.final_state], feed_dict=feed_dict)
+            [probs, state] = sess.run([self.probs, self.final_state], feed_dict=feed_dict)
 
             p = probs[0]
 
