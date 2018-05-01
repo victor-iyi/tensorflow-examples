@@ -1,3 +1,18 @@
+"""
+  @author 
+    Victor I. Afolabi
+    Artificial Intelligence & Software Engineer.
+    Email: javafolabi@gmail.com
+    GitHub: https://github.com/victor-iyiola
+  
+  @project
+    File: preprocess.py
+    Created on 01 May, 2018 @ 12:45 PM.
+    
+  @license
+    MIT License
+    Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
+"""
 import os
 import codecs
 import collections
@@ -7,32 +22,11 @@ import numpy as np
 
 
 class TextLoader:
-    """Data loader for character or text dataset.
-    
-    Arguments:
-        data_dir {str} -- Directory containing input.txt
-        batch_size {int} -- Mini batch size.
-        seq_length {int} -- Sequence length.
-    
-    Keyword Arguments:
-        encoding {str} -- Text encoding for reading and writing to files. (default: {'utf-8'})
-    """
-
     def __init__(self, data_dir: str, batch_size: int, seq_length: int, encoding='utf-8'):
-        # Arguments and Keyword arguments.
         self.data_dir = data_dir
         self.batch_size = batch_size
         self.seq_length = seq_length
         self.encoding = encoding
-
-        # Initialize instance variables to prevent warning.
-        self.chars = []
-        self.vocab = {}
-        self.vocab_size = 0
-        self.tensor = None
-        self.x_batch = None
-        self.y_batch = None
-        self.num_batches = 0
 
         # Data files.
         input_file = os.path.join(data_dir, 'input.txt')
@@ -50,7 +44,7 @@ class TextLoader:
 
         # Create batches & set batch pointer to 0.
         self.create_batches()
-        self.pointer = 0
+        self.reset_batch_pointer()
 
     def preprocess(self, input_file: str, vocab_file: str, tensor_file: str):
         """Pre-process dataset. Converts text data into numeric format.
@@ -87,12 +81,6 @@ class TextLoader:
         np.save(tensor_file, self.tensor)
 
     def load_preprocessed(self, vocab_file: str, tensor_file: str):
-        """Load pre-processed data and set all necessary values.
-        
-        Arguments:
-            vocab_file {str} -- Files where all unique characters/vocab in the dataset is stored.
-            tensor_file {str} -- File where the numeric representation of dataset is saved.
-        """
         # Open vocab file & read in all unique chars/vocab.
         with open(vocab_file, mode='rb') as f:
             self.chars = pickle.load(f)
@@ -110,13 +98,17 @@ class TextLoader:
         Raises:
             AssertionError -- Not enough data. Make batch_size & seq_len smaller.
         """
-        self.num_batches = int(self.tensor.size / (self.batch_size * self.seq_length))
+
+        self.num_batches = input(self.tensor.size / (self.batch_size *
+                                                     self.seq_length))
 
         # When self.tensor (data) is too small.
         if self.num_batches == 0:
-            raise AssertionError("Not enough data. Make batch_size & seq_length small.")
+            raise AssertionError(
+                "Not enough data. Make batch_size & seq_length small.")
 
-        self.tensor = self.tensor[:self.num_batches * self.batch_size * self.seq_length]
+        self.tensor = self.tensor[:self.num_batches *
+                                   self.batch_size * self.seq_length]
 
         x_data = self.tensor
         y_data = np.copy(self.tensor)
@@ -135,10 +127,12 @@ class TextLoader:
         Returns:
             {list} -- Next batch with shape [batch_size, -1]
         """
+
         x, y = self.x_batch[self.pointer], self.y_batch[self.pointer]
         self.pointer += 1
         return x, y
 
     def reset_batch_pointer(self):
         """Resets batch pointer to 0."""
+
         self.pointer = 0

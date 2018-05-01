@@ -53,7 +53,8 @@ class Model:
             # Add dropout only during training.
             if training and (args.input_keep_probs < 1.0 or args.output_keep_probs < 1.0):
                 cell = rnn.DropoutWrapper(cell,
-                                          input_keep_prob=args.input_keep_prob, output_keep_prob=args.output_keep_prob)
+                                          input_keep_prob=args.input_keep_prob,
+                                          output_keep_prob=args.output_keep_prob)
 
             # Append the hidden cell.
             cells.append(cell)
