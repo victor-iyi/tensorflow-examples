@@ -1,6 +1,7 @@
 import argparse
 import os
 import pickle
+import time
 
 from .suppress import *
 from .utils import TextLoader
@@ -64,6 +65,9 @@ def train(args):
     data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
     data_loader.vocab_size = args.vocab_size
 
+    # Checkpoint state.
+    ckpt = None
+
     # Check if training can be continued from previously saved model.
     if args.init_from is not None:
         # Assert all necessary files exists.
@@ -111,9 +115,42 @@ def train(args):
         pickle.dump((data_loader.chars, data_loader.vocab), f)
 
     # Define the model.
-    # model = Model(args, training=True)
+    model = Model(args, training=True)
 
     # Start TensorFlow session. (with the default graph).
+    with tf.Session() as sess:
+        # Summary for Tensorboard.
+        summary = tf.summary.merge_all()
+        writer = tf.summary.FileWriter(os.path.join(args.logdir, time.strftime("%Y-%m-%d-%H-%M-%S-%p")),
+                                       graph=sess.graph)
+        writer.add_graph(graph=sess.graph)
+
+        # Initialize global variables.
+        sess.run(tf.global_variables_initializer())
+
+        # Saver object for all global variables.
+        saver = tf.train.Saver(var_list=tf.global_variables())
+
+        # Restore model from checkpoint.
+        if args.init_from is not None:
+            saver.restore(sess=sess, save_path=ckpt.model_checkpoint_path)
+
+        # TRAINING LOOP.
+        for epoch in range(args.num_epochs):
+            # NOTE: Surrounded with try-except in case training was force-stopped.
+            try:
+                pass
+            except KeyboardInterrupt:
+                print('\nTraining interrupted by user. Saving...')
+
+                checkpoint_path = os.path.join(args.save_dir, "model.ckpt")
+                saver.save(sess=sess, save_path=checkpoint_path,
+                           global_step=model.global_step)
+
+                print("Model saved to {}\n".format(checkpoint_path))
+
+                # End training.
+                break
 
 
 if __name__ == '__main__':
