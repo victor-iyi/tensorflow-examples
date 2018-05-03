@@ -51,7 +51,7 @@ class Model:
             cell = cell_fn(args.rnn_size)
 
             # Add dropout only during training.
-            if training and (args.input_keep_probs < 1.0 or args.output_keep_probs < 1.0):
+            if training and (args.input_keep_prob < 1.0 or args.output_keep_prob < 1.0):
                 cell = rnn.DropoutWrapper(cell,
                                           input_keep_prob=args.input_keep_prob,
                                           output_keep_prob=args.output_keep_prob)
@@ -60,7 +60,7 @@ class Model:
             cells.append(cell)
 
         # Recurrent Cell.
-        self.cell = rnn.MultiRNNCell(cell, state_is_tuple=True)
+        self.cell = rnn.MultiRNNCell(cells=cells, state_is_tuple=True)
 
         # Model placeholders.
         self.input_data = tf.placeholder(dtype=tf.int32, shape=[args.batch_size, args.seq_length], name="input_data")
@@ -81,7 +81,7 @@ class Model:
             inputs = tf.nn.dropout(inputs, keep_prob=args.input_keep_prob)
 
         # Split & reshape inputs.
-        inputs = tf.split(axis=1, value=inputs, num_split=args.seq_length)
+        inputs = tf.split(value=inputs, num_or_size_splits=args.seq_length, axis=1)
         inputs = [tf.squeeze(input_, axis=[1]) for input_ in inputs]
 
         def loop(prev, _):

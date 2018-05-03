@@ -1,3 +1,5 @@
+from __future__ import absolute_import
+
 import argparse
 import os
 import pickle
@@ -13,7 +15,7 @@ def main():
     parser = argparse.ArgumentParser(formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 
     # Command line arguments.
-    parser.add_argument('--data_dir', type=str, default='data/pycode',
+    parser.add_argument('--data_dir', type=str, default='datasets/pycode',
                         help='Data directory containing input.txt')
     parser.add_argument('--save_dir', type=str, default='save',
                         help='Directory where checkpoints are stored.')
@@ -25,8 +27,8 @@ def main():
                         help='Number of hidden layers in the network.')
     parser.add_argument('--model', type=str, default='lstm',
                         help='Recurrent architecture: RNN, LSTM, GRU or NAS')
-    parser.add_argument('==batch_size', type=int,
-                        default=50, help='Mini batch size.')
+    parser.add_argument('--batch_size', type=int, default=50,
+                        help='Mini batch size.')
     parser.add_argument('--seq_length', type=int, default=50,
                         help='Recurrent sequence length.')
     parser.add_argument('--num_epochs', type=int, default=10,
@@ -63,7 +65,7 @@ def main():
 def train(args):
     # Load dataset.
     data_loader = TextLoader(args.data_dir, args.batch_size, args.seq_length)
-    data_loader.vocab_size = args.vocab_size
+    args.vocab_size = data_loader.vocab_size
 
     # Checkpoint state.
     ckpt = None
