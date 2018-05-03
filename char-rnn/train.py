@@ -120,7 +120,7 @@ def train(args):
     # Start TensorFlow session. (with the default graph).
     with tf.Session() as sess:
         # Summary for Tensorboard.
-        summary = tf.summary.merge_all()
+        summaries = tf.summary.merge_all()
         writer = tf.summary.FileWriter(os.path.join(args.logdir, time.strftime("%Y-%m-%d-%H-%M-%S-%p")),
                                        graph=sess.graph)
         writer.add_graph(graph=sess.graph)
@@ -139,18 +139,64 @@ def train(args):
         for epoch in range(args.num_epochs):
             # NOTE: Surrounded with try-except in case training was force-stopped.
             try:
-                pass
+                # Update Model's learning rate.
+                sess.run(tf.assign(model.lr, value=args.learning_rate * (args.decay_rate ** epoch)))
+
+                # Reset mini batch pointer.
+                data_loader.reset_batch_pointer()
+
+                # Initial state.
+                state = sess.run(model.initial_state)
+
+                for batch in range(data_loader.num_batches):
+                    # Record start time for current batch.
+                    start = time.time()
+
+                    # Get the next mini batch.
+                    X, y = data_loader.next_batch()
+
+                    feed_dict = {model.input_data: X, model.targets: y}
+
+                    for i, (c, h) in enumerate(model.initial_state):
+                        feed_dict[c] = state[i].c
+                        feed_dict[h] = state[i].h
+
+                    # Train the model.
+                    _, _loss, _global, _summary, state = sess.run([model.train_op, model.loss, model.global_step,
+                                                                   summaries, model.final_state], feed_dict=feed_dict)
+
+                    writer.add_summary(summary=_summary, global_step=_global)
+
+                    end = time.time()
+                    batch_count = epoch * data_loader.num_batches + batch
+
+                    # Log progress.
+                    print("\r{:,} of {:,} | global: {:,} Loss: {} time/batch: {}"
+                          .format(batch_count, args.num_epochs, _global, _loss, end - start), end="")
+
+                    # Save model at intervals.
+                    if batch_count % args.save_every == 0 or (
+                                    epoch == args.num_epochs - 1 and batch == data_loader.num_batches - 1):
+                        save_path = os.path.join(args.save_dir, "model.ckpt")
+                        saver.save(sess=sess, save_path=save_path, global_step=model.global_step)
+
+                        print("\nModel saved to {}\n".format(save_path))
+
+                """# !- end batch"""
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user. Saving...')
 
-                checkpoint_path = os.path.join(args.save_dir, "model.ckpt")
-                saver.save(sess=sess, save_path=checkpoint_path,
+                save_path = os.path.join(args.save_dir, "model.ckpt")
+                saver.save(sess=sess, save_path=save_path,
                            global_step=model.global_step)
 
-                print("Model saved to {}\n".format(checkpoint_path))
+                print("Model saved to {}\n".format(save_path))
 
                 # End training.
                 break
+
+        # !- end epoch
+        print("\n\nOverall training count = {}".format(sess.run(model.global_step)))
 
 
 if __name__ == '__main__':
