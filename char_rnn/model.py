@@ -1,5 +1,12 @@
-from .suppress import *
+# Backward compatibility with Python 2.
+from __future__ import print_function, absolute_import, division
 
+# Suppress all warnings.
+import warnings
+
+warnings.filterwarnings('ignore')
+
+import tensorflow as tf
 from tensorflow.contrib import rnn
 from tensorflow.contrib import legacy_seq2seq
 
@@ -65,7 +72,7 @@ class Model:
         # Model placeholders.
         self.input_data = tf.placeholder(dtype=tf.int32, shape=[args.batch_size, args.seq_length], name="input_data")
         self.targets = tf.placeholder(dtype=tf.int32, shape=[args.batch_size, args.seq_length], name="targets")
-        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.int32)
+        self.initial_state = cell.zero_state(batch_size=args.batch_size, dtype=tf.float32)
 
         # Recurrent Neural Net Language Modelling.
         with tf.variable_scope('rnnlm'):
@@ -123,8 +130,8 @@ class Model:
         # Loss function.
         with tf.variable_scope('loss'):
             seq_loss = legacy_seq2seq.sequence_loss_by_example(
-                logits=self.logits,
-                targets=tf.reshape(self.targets, shape=[-1]),
+                logits=[self.logits],
+                targets=[tf.reshape(self.targets, shape=[-1])],
                 weights=[tf.ones(shape=[args.batch_size * args.seq_length])])
 
             self.loss = tf.reduce_sum(seq_loss) / args.batch_size / args.seq_length
@@ -141,7 +148,7 @@ class Model:
         # Optimizer.
         with tf.variable_scope("optimizer"):
             self.global_step = tf.Variable(0, trainable=False, name="global_step")
-            optimizer = tf.train.AdamOptimizer(learning_rate=args.lr)
+            optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
 
         # Train ops.
         self.train_op = optimizer.apply_gradients(grads_and_vars=zip(grads, tvars),
@@ -173,7 +180,7 @@ class Model:
 
         # Initial cell state. TODO: Change dtype=tf.float32
         # Predict final state given input data & prev state.
-        state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.int32))
+        state = sess.run(self.cell.zero_state(batch_size=1, dtype=tf.float32))
         for char in prime[:-1]:
             # Input data: one char at a time.
             x = np.zeros(shape=(1, 1))

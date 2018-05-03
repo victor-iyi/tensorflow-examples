@@ -1,13 +1,22 @@
-from __future__ import absolute_import
+# Backward compatibility with Python 2.
+from __future__ import print_function, absolute_import, division
 
-import argparse
+# Suppress all warnings.
+import warnings
+
+warnings.filterwarnings('ignore')
+
 import os
-import pickle
 import time
+import pickle
+import argparse
 
-from .suppress import *
-from .utils import TextLoader
-from .model import Model
+import tensorflow as tf
+
+from utils import TextLoader
+from model import Model
+
+# tf.enable_eager_execution()
 
 
 def main():
@@ -17,7 +26,7 @@ def main():
     # Command line arguments.
     parser.add_argument('--data_dir', type=str, default='datasets/pycode',
                         help='Data directory containing input.txt')
-    parser.add_argument('--save_dir', type=str, default='save',
+    parser.add_argument('--save_dir', type=str, default='saved',
                         help='Directory where checkpoints are stored.')
     parser.add_argument('--logdir', type=str, default='logs',
                         help='Tensorboard log directory.')
