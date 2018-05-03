@@ -13,6 +13,7 @@
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
+
 import pandas as pd
 import tensorflow as tf
 
@@ -41,11 +42,11 @@ def maybe_download():
     return train_path, test_path
 
 
-def load_data(y_name="Species"):
+def load_data(y_name: (str, list, tuple) = "Species"):
     """Automatically downloads (if dataset doesn't exist) and loads the Iris dataset.
 
     Args:
-        y_name (str): Column name for the labels.
+        y_name (str, list): Column name for the labels.
 
     Returns:
         [(pd.DataFrame, pd.DataFrame), (pd.DataFrame, pd.DataFrame)] - List of
@@ -66,7 +67,7 @@ def load_data(y_name="Species"):
     return (train_X, train_y), (test_X, test_y)
 
 
-def train_input_fn(features, labels, batch_size):
+def train_input_fn(features, labels, batch_size: int = 64):
     """Input function for training.
 
     Args:
@@ -84,7 +85,7 @@ def train_input_fn(features, labels, batch_size):
     return dataset
 
 
-def eval_input_fn(features, labels=None, batch_size=64):
+def eval_input_fn(features, labels=None, batch_size: int = 64):
     """Input function for evaluation or prediction.
 
     Args:
@@ -130,7 +131,7 @@ def _parse_line(line):
     return features, labels
 
 
-def csv_input_fn(csv_path, batch_size):
+def csv_input_fn(csv_path: str, batch_size: int = 32):
     """Input function for CSV files.
 
     Args:
@@ -144,8 +145,8 @@ def csv_input_fn(csv_path, batch_size):
     # Create a dataset containing the lines. Skip the 1st row.
     dataset = tf.data.TextLineDataset(csv_path).skip(1)
 
-    # Parse each line & shuffle the dataset.
+    # Parse each line & randomize the dataset.
     dataset = dataset.map(_parse_line)
-    dataset = dataset.shuffle(1000).repeat().batch(batch_size)
+    dataset = dataset.shuffle(buffer_size=1000).repeat().batch(batch_size)
 
     return dataset
