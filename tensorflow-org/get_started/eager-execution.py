@@ -18,7 +18,7 @@
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
 
-from .iris_data import maybe_download, csv_input_fn
+from iris_data import maybe_download, csv_input_fn
 
 # Turn on eager execution.
 tf.enable_eager_execution()
@@ -68,3 +68,6 @@ def grad(model: tf.keras.Model, inputs: tf.data.Dataset, targets: tf.data.Datase
 
     # Gradient of model w.r.t. it's variables.
     return tape.gradient(loss_value, model.variables)
+
+
+optimizer = tf.train.RMSPropOptimizer(learning_rate=1e-2)

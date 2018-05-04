@@ -125,7 +125,7 @@ def _parse_line(line):
 
     # Features contains 1st 4 columns while labels - last column.
     features = dict(zip(CSV_COLUMN_NAMES, fields))
-    labels = fields.pop(CSV_COLUMN_NAMES[-1])
+    labels = fields.pop()
 
     # Returns the features and labels split. [NOT PRE-PROCESSED!]
     return features, labels
