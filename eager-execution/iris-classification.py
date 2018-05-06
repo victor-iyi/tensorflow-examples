@@ -21,6 +21,10 @@ from tensorflow.contrib.eager.python import tfe
 # Turn on eager execution.
 tf.enable_eager_execution()
 
+buffer_size = 1000
+batch_size = 32
+learning_rate = 1e-2
+
 
 def _parse_line(line):
     """Perform pre-processing on each row in the CSV file.
@@ -59,13 +63,15 @@ def load_data():
     train = tf.data.TextLineDataset(train_path)
     train = train.skip(count=1)
     train = train.map(_parse_line)
-    train = train.shuffle(buffer_size=1000)
-    train = train.batch(batch_size=32)
+    train = train.shuffle(buffer_size=buffer_size)
+    train = train.batch(batch_size=batch_size)
 
     # Test dataset.
     test = tf.data.TextLineDataset(test_path)
     test = test.skip(count=1)
     test = test.map(_parse_line)
+    test = test.shuffle(buffer_size=buffer_size)
+    test = test.batch(batch_size=batch_size)
 
     # Return train & test as a tf.data.Dataset object.
     return train, test
@@ -115,6 +121,9 @@ TARGET_NAMES = {0: 'Setosa', 1: 'Versicolor', 2: 'Virginica'}
 train_data, test_data = load_data()
 
 
+# """
+
+
 class Network(tf.keras.Model):
     def __init__(self):
         super(Network, self).__init__()
@@ -147,13 +156,13 @@ class Network(tf.keras.Model):
         pass
 
 
-net = Network()
+model = Network()
 
 
 def loss(model: Network, inputs: any, labels: any):
     logits = model(inputs)
-    entropy = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,
-                                                         labels=labels)
+    entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
+                                                             labels=labels)
     return tf.reduce_mean(entropy, name="loss")
 
 
@@ -166,11 +175,32 @@ def train_step(loss: loss, model: Network, optimizer: tf.train.Optimizer, x, y):
 
 
 # Loop through each batch in the dataset.
-for b, (X_batch, y_batch) in enumerate(tfe.Iterator(train_data)):
+for b, (_, y_batch) in enumerate(tfe.Iterator(train_data)):
     y_batch = y_batch.numpy()  # Convert to numpy array.
     print('\nBatch {}'.format(b))
     # Loop through each class.
     for i, class_names in TARGET_NAMES.items():
-        indices = np.where(y_batch == i)[0]  # Get the list of
+        indices = np.where(y_batch == i)[0]  # Get the index of class occurrences.
         per = len(y_batch[indices]) / len(y_batch)
         print('Percentage of class {!r}: {:>.2%}'.format(class_names.title(), per))
+
+# Initialize the metric
+accuracy = tfe.metrics.Accuracy()
+
+for X_batch, y_batch in tfe.Iterator(test_data):
+    # Predicted label and True label.
+    y_pred = tf.argmax(model(tf.constant(X_batch)), axis=1, output_type=tf.int32)
+    # y_true = tf.argmax(y_batch, axis=1)
+
+    # Save the training accuracy on the batch.
+    accuracy(y_pred, y_batch)
+
+print('\nAccuracy = {:.2%}'.format(accuracy.result()))
+from tensorflow.contrib.summary.summary import create_file_writer, always_record_summaries
+
+logdir = '../logs/iris-classification'
+
+writer = create_file_writer(logdir=logdir)
+# with writer.as_default():
+#     with always_record_summaries() as summ:
+#         writer.add_summary(summ=summ)
