@@ -53,7 +53,11 @@ def loss(model, x, y):
 
 
 def grad(model: tf.keras.Model, inputs: tf.data.Dataset, targets: tf.data.Dataset):
-    """Estimates the gradients of the model with respect to the model parameters.
+    """Estimates the derivative of the loss with respect to the model parameters.
+
+    Returns the derivative of the loss w.r.t. weights and biases. The passing
+    this to `optimizer.apply_gradients()`` completes the process of apply
+    gradient descent.
 
     Args:
         model (tf.keras.Model): Keras model.
