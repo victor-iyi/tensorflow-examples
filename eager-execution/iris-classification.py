@@ -17,6 +17,8 @@ import numpy as np
 
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
+# Experimental summary with Eager execution.
+from tensorflow.contrib.summary import summary
 
 # Turn on eager execution.
 tf.enable_eager_execution()
@@ -196,11 +198,10 @@ for X_batch, y_batch in tfe.Iterator(test_data):
     accuracy(y_pred, y_batch)
 
 print('\nAccuracy = {:.2%}'.format(accuracy.result()))
-from tensorflow.contrib.summary.summary import create_file_writer, always_record_summaries
 
 logdir = '../logs/iris-classification'
 
-writer = create_file_writer(logdir=logdir)
+writer = summary.create_file_writer(logdir=logdir)
 # with writer.as_default():
 #     with always_record_summaries() as summ:
 #         writer.add_summary(summ=summ)
