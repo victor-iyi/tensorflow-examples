@@ -13,8 +13,12 @@
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
+import time
+from datetime import datetime as datetime
+
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
+from tensorflow.contrib.summary import summary
 
 # Turn on eager execution mode.
 tf.enable_eager_execution()
@@ -173,13 +177,13 @@ optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 
 
 def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
-               loss_func: any, inputs: tf.Tensor, labels: tf.Tensor, **kwargs):
+               loss_func: loss, inputs: tf.Tensor, labels: tf.Tensor, **kwargs):
     """Kicks off training for a given model.
 
     Args:
         model (tf.keras.Model):
         optimizer (tf.train.Optimizer):
-        loss_func (any): Loss function.
+        loss_func (loss): Loss function.
         inputs (tf.Tensor): Dataset's input features.
         labels (tf.Tensor): Dataset true labels.
 
@@ -198,15 +202,38 @@ def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
 train_accuracy = tfe.metrics.Accuracy()
 
 epochs = 1000
-for epoch in range(epochs):
-    # Loop through each data batches.
-    for X_batch, y_batch in tfe.Iterator(train_data):
-        # Run the training step.
-        train_step(model, optimizer, loss, X_batch, y_batch)
+logdir = '../logs/iris-eager'
+acc = 0.0
+_loss = 0.
 
-        # Estimate accuracy.
-        y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
-        train_acc = train_accuracy(y_pred, y_batch)
+# File writer for tensorboard visualization.
+writer = summary.create_file_writer(logdir=logdir)
+with writer.as_default():
+    with summary.always_record_summaries():
+        print('\n{}'.format(75 * '-'))
+        print('Training started: {:%c}\n'.format(datetime.now()))
+        start = time.time()
+        for epoch in range(epochs):
+            # Loop through each data batches.
+            for X_batch, y_batch in tfe.Iterator(train_data):
+                # Run the training step.
+                train_step(model, optimizer, loss, X_batch, y_batch)
 
-    print('\rEpoch {:,}\t Accuracy: {:.2%}'.format(epoch, train_accuracy.result()),
-          end='')
+                # Estimate loss
+                _loss = loss(model, X_batch, y_batch)
+                tf.summary.scalar('loss', _loss)
+
+                # Estimate accuracy.
+                y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
+                train_accuracy(y_pred, y_batch)
+                acc = train_accuracy.result()
+
+            elapsed = time.time() - start
+            print(('\rEpoch {:,}\t Loss: {:.4f} \t Acc: {:.2%}'
+                   '\t time/epoch: {:.0f}m {:0f}s').format(epoch + 1, _loss, acc,
+                                                           elapsed // 60, elapsed % 60),
+                  end='')
+
+        # !- End training
+        print('\nTraining ended: {:%c}'.format(datetime.now()))
+        print('{}'.format(75 * '-'))

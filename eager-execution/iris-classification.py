@@ -161,7 +161,7 @@ class Network(tf.keras.Model):
 model = Network()
 
 
-def loss(model: Network, inputs: any, labels: any):
+def loss(model: Network, inputs: tf.Tensor, labels: tf.Tensor):
     logits = model(inputs)
     entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                              labels=labels)
@@ -171,7 +171,7 @@ def loss(model: Network, inputs: any, labels: any):
 optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 
 
-def train_step(loss: loss, model: Network, optimizer: tf.train.Optimizer, x, y):
+def train_step(model: Network, optimizer: tf.train.Optimizer, loss: loss, x: tf.Tensor, y: tf.Tensor):
     optimizer.minimize(loss=lambda: loss(model, x, y),
                        global_step=tf.train.get_or_create_global_step())
 
@@ -186,22 +186,35 @@ for b, (_, y_batch) in enumerate(tfe.Iterator(train_data)):
         per = len(y_batch[indices]) / len(y_batch)
         print('Percentage of class {!r}: {:>.2%}'.format(class_names.title(), per))
 
-# Initialize the metric
-accuracy = tfe.metrics.Accuracy()
-
-for X_batch, y_batch in tfe.Iterator(test_data):
-    # Predicted label and True label.
-    y_pred = tf.argmax(model(tf.constant(X_batch)), axis=1, output_type=tf.int32)
-    # y_true = tf.argmax(y_batch, axis=1)
-
-    # Save the training accuracy on the batch.
-    accuracy(y_pred, y_batch)
-
-print('\nAccuracy = {:.2%}'.format(accuracy.result()))
-
 logdir = '../logs/iris-classification'
+epochs = 200
+accuracies = np.zeros(epochs)
 
 writer = summary.create_file_writer(logdir=logdir)
-# with writer.as_default():
-#     with always_record_summaries() as summ:
-#         writer.add_summary(summ=summ)
+with writer.as_default():
+    with summary.always_record_summaries():
+        # !- Training started.
+        print(55 * '-')
+        for epoch in range(epochs):
+            accuracy = tfe.metrics.Accuracy()
+            _loss = 0.
+            # Loop over the epochs.
+            for X_batch, y_batch in tfe.Iterator(train_data):
+                # Save the loss for tensorboard.
+                _loss = loss(model, X_batch, y_batch)
+                tf.summary.scalar('loss', _loss)
+
+                # Train the network.
+                train_step(model, optimizer, loss, X_batch, y_batch)
+
+                # Get accuracy.
+                y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
+                accuracy(y_pred, y_batch)
+
+            acc = accuracy.result()
+            # Save accuracy for tensorboard.
+            tf.summary.scalar('accuracy', acc)
+
+            print('\rEpoch: {:,}\tLoss: {:.4f}\tAcc: {:.2%}'.format(epoch + 1, _loss, acc), end='')
+        # !- End training.
+        print('\n'.format(55 * '-'))
