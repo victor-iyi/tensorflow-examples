@@ -228,12 +228,14 @@ with writer.as_default():
                 train_accuracy(y_pred, y_batch)
                 acc = train_accuracy.result()
 
+            # Log training progress.
             elapsed = time.time() - start
             print(('\rEpoch {:,}\t Loss: {:.4f} \t Acc: {:.2%}'
-                   '\t time/epoch: {:.0f}m {:0f}s').format(epoch + 1, _loss, acc,
-                                                           elapsed // 60, elapsed % 60),
+                   '\t Time taken: {:.0f}h {:.0f}m {:.0f}s').format(epoch + 1, _loss, acc,
+                                                                    elapsed // (60 * 60),
+                                                                    elapsed // 60, elapsed % 60),
                   end='')
 
         # !- End training
-        print('\nTraining ended: {:%c}'.format(datetime.now()))
+        print('\n\nTraining ended: {:%c}'.format(datetime.now()))
         print('{}'.format(75 * '-'))
