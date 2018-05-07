@@ -173,13 +173,13 @@ optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 
 
 def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
-               loss_func: loss, inputs: tf.Tensor, labels: tf.Tensor, **kwargs):
+               loss_func: any, inputs: tf.Tensor, labels: tf.Tensor, **kwargs):
     """Kicks off training for a given model.
 
     Args:
         model (tf.keras.Model):
         optimizer (tf.train.Optimizer):
-        loss_func (loss): Loss function.
+        loss_func (any): Loss function.
         inputs (tf.Tensor): Dataset's input features.
         labels (tf.Tensor): Dataset true labels.
 
@@ -190,23 +190,23 @@ def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
         An Operation that updates the variables in `var_list`.  If `global_step`
               was not `None`, that operation also increments `global_step`.
     """
-    loss = loss_func(model, inputs, labels, **kwargs)
-    return optimizer.minimize(loss=loss,
-                              global_step=tf.train.get_or_create_global_step)
+
+    return optimizer.minimize(loss=lambda: loss_func(model, inputs, labels, **kwargs),
+                              global_step=tf.train.get_or_create_global_step())
 
 
 train_accuracy = tfe.metrics.Accuracy()
-#
-# epochs = 10000
-# for epoch in range(epochs):
-#     # Loop through each data batches.
-#     for X_batch, y_batch in tfe.Iterator(train_data):
-#         # Run the training step.
-#         train_step(model, optimizer, loss, X_batch, y_batch)
-#
-#         # Estimate accuracy.
-#         y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
-#         train_acc = train_accuracy(y_pred, y_batch)
-#
-#     print('\rEpoch {:03d,}\t Accuracy: {:.3%}'.format(epoch, train_accuracy.result()),
-#           end='')
+
+epochs = 1000
+for epoch in range(epochs):
+    # Loop through each data batches.
+    for X_batch, y_batch in tfe.Iterator(train_data):
+        # Run the training step.
+        train_step(model, optimizer, loss, X_batch, y_batch)
+
+        # Estimate accuracy.
+        y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
+        train_acc = train_accuracy(y_pred, y_batch)
+
+    print('\rEpoch {:,}\t Accuracy: {:.2%}'.format(epoch, train_accuracy.result()),
+          end='')
