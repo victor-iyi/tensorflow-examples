@@ -228,6 +228,8 @@ with writer.as_default():
                 train_accuracy(y_pred, y_batch)
                 acc = train_accuracy.result()
 
+            tf.summary.scalar('accuracy', acc)
+
             # Log training progress.
             elapsed = time.time() - start
             print(('\rEpoch {:,}\t Loss: {:.4f} \t Acc: {:.2%}'
