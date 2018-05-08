@@ -1,4 +1,5 @@
-"""
+"""Iris classification using TensorFlow's Eager Execution mode.
+
   @author 
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
@@ -114,16 +115,12 @@ train_data = train_data.batch(batch_size=32)
 
 # Testing set.
 test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
-
 """
 # Label names
 TARGET_NAMES = {0: 'Setosa', 1: 'Versicolor', 2: 'Virginica'}
 
 # Training and testing set.
 train_data, test_data = load_data()
-
-
-# """
 
 
 class Network(tf.keras.Model):
@@ -158,23 +155,39 @@ class Network(tf.keras.Model):
         pass
 
 
-model = Network()
+def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor):
+    """Cross entropy loss function.
 
+    Arguments:
+        model {tf.keras.Model} -- Instance of tf.Keras.Model
+        inputs {tf.Tensor} -- Input features.
+        labels {tf.Tensor} -- Output labels.
 
-def loss(model: Network, inputs: tf.Tensor, labels: tf.Tensor):
+    Returns:
+        tf.Tensor -- Loss value.
+    """
     logits = model(inputs)
     entropy = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits,
                                                              labels=labels)
     return tf.reduce_mean(entropy, name="loss")
 
 
-optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
+def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer, loss: loss, x: tf.Tensor, y: tf.Tensor):
+    """Training operation. That is, we minimize the loss function here.
 
-
-def train_step(model: Network, optimizer: tf.train.Optimizer, loss: loss, x: tf.Tensor, y: tf.Tensor):
+    Arguments:
+        model {tf.keras.Model} -- Instance of tf.keras.Model
+        optimizer {tf.train.Optimizer} -- Optimizer to be used.
+        loss {loss} -- Loss function.
+        x {tf.Tensor} -- Input features.
+        y {tf.Tensor} -- Output labels.
+    """
     optimizer.minimize(loss=lambda: loss(model, x, y),
                        global_step=tf.train.get_or_create_global_step())
 
+
+model = Network()
+optimizer = tf.train.AdamOptimizer(learning_rate=1e-2)
 
 # Loop through each batch in the dataset.
 for b, (_, y_batch) in enumerate(tfe.Iterator(train_data)):
@@ -182,9 +195,11 @@ for b, (_, y_batch) in enumerate(tfe.Iterator(train_data)):
     print('\nBatch {}'.format(b))
     # Loop through each class.
     for i, class_names in TARGET_NAMES.items():
-        indices = np.where(y_batch == i)[0]  # Get the index of class occurrences.
+        # Get the index of class occurrences.
+        indices = np.where(y_batch == i)[0]
         per = len(y_batch[indices]) / len(y_batch)
-        print('Percentage of class {!r}: {:>.2%}'.format(class_names.title(), per))
+        print('Percentage of class {!r}: {:>.2%}'.format(
+            class_names.title(), per))
 
 logdir = '../logs/iris-classification'
 epochs = 200
@@ -208,13 +223,17 @@ with writer.as_default():
                 train_step(model, optimizer, loss, X_batch, y_batch)
 
                 # Get accuracy.
-                y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
+                y_pred = tf.argmax(model(X_batch), axis=1,
+                                   output_type=tf.int32)
                 accuracy(y_pred, y_batch)
 
+            # Get the accuracy & save it for tensorboard.
             acc = accuracy.result()
-            # Save accuracy for tensorboard.
             tf.summary.scalar('accuracy', acc)
 
-            print('\rEpoch: {:,}\tLoss: {:.4f}\tAcc: {:.2%}'.format(epoch + 1, _loss, acc), end='')
+            # Log training progress.
+            print('\rEpoch: {:,}\tLoss: {:.4f}\tAcc: {:.2%}'.format(epoch + 1,
+                                                                    _loss, acc),
+                  end='')
         # !- End training.
         print('\n'.format(55 * '-'))

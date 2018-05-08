@@ -1,4 +1,5 @@
-"""
+"""Iris classification using TensorFlow's Eager Execution mode.
+
   @author 
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
@@ -75,8 +76,10 @@ def load_data(**kwargs):
     TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
 
     # Download dataset if it doesn't exist, otherwise, load from disk.
-    train_path = tf.keras.utils.get_file(fname=TRAIN_URL.split('/')[-1], origin=TRAIN_URL)
-    test_path = tf.keras.utils.get_file(fname=TEST_URL.split('/')[-1], origin=TEST_URL)
+    train_path = tf.keras.utils.get_file(
+        fname=TRAIN_URL.split('/')[-1], origin=TRAIN_URL)
+    test_path = tf.keras.utils.get_file(
+        fname=TEST_URL.split('/')[-1], origin=TEST_URL)
 
     # Read train & test set into Dataset objects.
     train = process(train_path, **kwargs)
@@ -121,9 +124,11 @@ class Model(tf.keras.Model):
         super(Model, self).__init__()
 
         # Network definition.
-        self.hidden_layer = tf.keras.layers.Dense(units=10, activation='relu', name='hidden_layer')
+        self.hidden_layer = tf.keras.layers.Dense(
+            units=10, activation='relu', name='hidden_layer')
         self.dropout = tf.keras.layers.Dropout(rate=0.5)
-        self.output_layer = tf.keras.layers.Dense(units=3, activation=None, name='output_layer')
+        self.output_layer = tf.keras.layers.Dense(
+            units=3, activation=None, name='output_layer')
 
     def __call__(self, inputs, **kwargs):
         return self.call(inputs, **kwargs)
@@ -224,7 +229,8 @@ with writer.as_default():
                 tf.summary.scalar('loss', _loss)
 
                 # Estimate accuracy.
-                y_pred = tf.argmax(model(X_batch), axis=1, output_type=tf.int32)
+                y_pred = tf.argmax(model(X_batch), axis=1,
+                                   output_type=tf.int32)
                 train_accuracy(y_pred, y_batch)
                 acc = train_accuracy.result()
 
