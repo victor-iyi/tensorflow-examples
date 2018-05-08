@@ -28,23 +28,36 @@ import tensorflow as tf
 x = np.random.sample(size=(100, 2))
 dataset = tf.data.Dataset.from_tensor_slices(x)
 
+# Clean variables from memory.
+del x, dataset
+
 # METHOD 2: Passing more than one array.
 x = np.random.sample((100, 2))
 y = np.random.sample((100, 1))
 
 dataset = tf.data.Dataset.from_tensor_slices((x, y))
 
+# Clean variables from memory.
+del x, y, dataset
+
 # METHOD 3: From Tensors.
 x = tf.random_normal(shape=(100, 2))
 dataset = tf.data.Dataset.from_tensor_slices(x)
+
+# Clean variables from memory.
+del x, dataset
 
 # METHOD 4: From Placeholders:
 # (in case we want to dynamically change data inside the Dataset)
 x = tf.placeholder(dtype=tf.float32, shape=(None, 2))
 dataset = tf.data.Dataset.from_tensor_slices(x)
 
+# Clean variables from memory.
+del x, dataset
+
 # METHOD 5: From Generators.
 # (useful when we have an array of different elements length e.g. sequence)
+print('\nFrom Generators:')
 sequence = np.array([[[1, 2], [3, 4], [5, 6]]], dtype=np.int64)
 
 
@@ -56,8 +69,7 @@ def generator():
 
 # Create Dataset object from generator function
 dataset = tf.data.Dataset.from_generator(generator,
-                                         output_types=tf.int64,
-                                         output_shapes=(None, 2))
+                                         output_types=tf.int64)
 
 # Create an iterator for enumerating elements in the dataset.
 iterator = dataset.make_initializable_iterator()
@@ -71,11 +83,81 @@ with tf.Session() as sess:
     sess.run(iterator.initializer)
     print('seq = {}'.format(sess.run(seq)))
 
+# Clean variables from memory.
+del sequence, generator, dataset, iterator, seq, sess
 
 ######################################################################
 # +------------------------------------------------------------------+
 # | How to create `Iterator` (to retrieve the real values in Dataset).
 # +------------------------------------------------------------------+
 ######################################################################
-# METHOD 1: One shot Iterator
+# METHOD 1: One shot Iterator,
+print('\nUsing one shot iterator.')
 x = np.random.sample(size=(100, 2))
+dataset = tf.data.Dataset.from_tensor_slices(x)
+iterator = dataset.make_one_shot_iterator()
+elements = iterator.get_next()
+
+with tf.Session() as sess:
+    print('elements = {}'.format(sess.run(elements)))
+    print('elements = {}'.format(sess.run(elements)))
+    print('elements = {}'.format(sess.run(elements)))
+
+# Clean variables from memory.
+del x, dataset, iterator, elements, sess
+
+# METHOD 2: Initializable Iterator.
+print('\nUsing a placeholder.')
+x = tf.placeholder(dtype=tf.float32, shape=[None, 2])
+dataset = tf.data.Dataset.from_tensor_slices(x)
+
+# Real numpy data (we'll pass it through `feed_dict`).
+data = np.random.sample(size=(100, 2))
+
+# Make initializable Iterator.
+iterator = dataset.make_initializable_iterator()
+elements = iterator.get_next()
+
+with tf.Session() as sess:
+    sess.run(iterator.initializer, feed_dict={x: data})
+    print('elements = {}'.format(sess.run(elements)))
+    print('elements = {}'.format(sess.run(elements)))
+
+# Clean variables from memory.
+del x, dataset, data, iterator, elements, sess
+
+######################################################################
+# +------------------------------------------------------------------+
+# | Maker:
+# +------------------------------------------------------------------+
+######################################################################
+print('\nReal world example:')
+
+# Training dataset.
+X_train = np.random.sample(size=(100, 2))
+y_train = np.random.sample(size=(100, 1))
+
+# Testing dataset.
+X_test = np.random.sample(size=(10, 2))
+y_test = np.random.sample(size=(10, 1))
+
+X_plhd = tf.placeholder(dtype=tf.float32, shape=[None, 2])
+y_plhd = tf.placeholder(dtype=tf.float32, shape=[None, 1])
+
+dataset = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+iterator = dataset.make_initializable_iterator()
+features, labels = iterator.get_next()
+
+epochs = 5
+with tf.Session() as sess:
+    for epoch in range(epochs):
+        # Initialize iterator.
+        sess.run(iterator.initializer, feed_dict={X_plhd: X_train,
+                                                  y_plhd: y_train})
+        _features, _labels = sess.run([features, labels])
+        print('features = {}\t labels = {}'.format(_features, _labels))
+
+
+# Clean variables from memory.
+del X_train, y_train, X_test, y_test, dataset, iterator, features, labels
+del X_plhd, y_plhd, epochs, sess, _features, _labels, epoch
