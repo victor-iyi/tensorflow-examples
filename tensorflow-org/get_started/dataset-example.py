@@ -18,6 +18,12 @@ import numpy as np
 
 import tensorflow as tf
 
+
+######################################################################
+# +------------------------------------------------------------------+
+# | How to create dataset: (5 methods here...)
+# +------------------------------------------------------------------+
+######################################################################
 # METHOD 1: From single numpy array.
 x = np.random.sample(size=(100, 2))
 dataset = tf.data.Dataset.from_tensor_slices(x)
@@ -64,3 +70,12 @@ with tf.Session() as sess:
     # therefore, we need to initialize it before using it.
     sess.run(iterator.initializer)
     print('seq = {}'.format(sess.run(seq)))
+
+
+######################################################################
+# +------------------------------------------------------------------+
+# | How to create `Iterator` (to retrieve the real values in Dataset).
+# +------------------------------------------------------------------+
+######################################################################
+# METHOD 1: One shot Iterator
+x = np.random.sample(size=(100, 2))
