@@ -150,13 +150,19 @@ features, labels = iterator.get_next()
 
 epochs = 5
 with tf.Session() as sess:
+    print('Train data:')
     for epoch in range(epochs):
-        # Initialize iterator.
+        # Initialize iterator for training data.
         sess.run(iterator.initializer, feed_dict={X_plhd: X_train,
                                                   y_plhd: y_train})
         _features, _labels = sess.run([features, labels])
         print('features = {}\t labels = {}'.format(_features, _labels))
-
+    print('Test data:')
+    # Initialize iterator for testing data.
+    sess.run(iterator.initializer, feed_dict={X_plhd: X_test,
+                                              y_plhd: y_test})
+    _features, _labels = sess.run([features, labels])
+    print('features = {}\t labels = {}'.format(_features, _labels))
 
 # Clean variables from memory.
 del X_train, y_train, X_test, y_test, dataset, iterator, features, labels
