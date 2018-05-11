@@ -29,8 +29,8 @@ CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth', 'S
 SPECIES = ['Setosa', 'Versicolor', 'Virginica']
 
 # Hyperparameters.
-epochs = 500
-buffer_size = 1000
+epochs = 2000
+buffer_size = 500
 batch_size = 32
 learning_rate = 1e-2
 
@@ -154,6 +154,11 @@ if __name__ == '__main__':
     # Load training and testing dataset.
     train_data, test_data = load_data()
 
+    # Dataset dimensions.
+    n_train, n_test = train_data[0].shape[0], test_data[1].shape[0]
+    n_features, n_labels = test_data[0].shape[1], test_data[1].shape[1]
+
+    # Features and labels placeholder.
     X_plhd = tf.placeholder(dtype=tf.float32, shape=[None, 4])
     y_plhd = tf.placeholder(dtype=tf.int32, shape=[None, 3])
 
@@ -172,6 +177,26 @@ if __name__ == '__main__':
     loss = loss_func(model=model, features=features, labels=labels)
     train_op = train_model(optimizer=optimizer, loss=loss)
     global_step = tf.train.get_global_step()
+
+    logits = model(features)
+    correct = tf.equal(tf.argmax(logits, axis=1), tf.argmax(labels, axis=1))
+    accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+
+    with tf.Session() as sess:
+        # Initialize global variables.
+        sess.run(tf.global_variables_initializer())
+        feed_dict = {X_plhd: train_data[0], y_plhd: train_data[1]}
+
+        for epoch in range(epochs):
+            sess.run(iterator.initializer, feed_dict=feed_dict)
+
+            # Go through mini-batch.
+            for batch in range(n_train // batch_size):
+                # Train the network.
+                _, _loss, _global_step, _acc = sess.run([train_op, loss, global_step, accuracy])
+                print(('\rEpoch {:,} of {:,}\tGlobal step: {:,}'
+                       '\tLoss: {:.3f}\tAcc: {:.2%}').format(epoch + 1, epochs, _global_step,
+                                                             _loss, _acc), end='')
 
 """
     # Get train data.
