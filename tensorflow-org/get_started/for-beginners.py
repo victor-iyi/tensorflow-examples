@@ -200,18 +200,23 @@ def main():
         sess.run(tf.global_variables_initializer())
         feed_dict = {X_plhd: train_data[0], y_plhd: train_data[1]}
 
+        # Training.
         for epoch in range(epochs):
             sess.run(iterator.initializer, feed_dict=feed_dict)
+            # Train the network.
+            _, _loss, _i_global = sess.run([train_op, loss, global_step])
 
-            # Go through mini-batch.
-            for batch in range(n_train // batch_size):
-                # Train the network.
-                _, _loss, _global_step, _acc = sess.run([train_op, loss, global_step, accuracy])
+            # Log training progress.
+            print(('\rEpoch {:,} of {:,}\tGlobal step: {:,}'
+                   '\tLoss: {:.4f}').format(epoch + 1, epochs, _i_global, _loss), end='')
 
-                # Log training progress.
-                print(('\rEpoch {:,} of {:,}\tGlobal step: {:,}'
-                       '\tLoss: {:.3f}\tAcc: {:.2%}')
-                      .format(epoch + 1, epochs, _global_step, _loss, _acc), end='')
+        # Testing accuracy (re-initialize dataset iterator with test data).
+        feed_dict = {X_plhd: test_data[0], y_plhd: test_data[1]}
+        sess.run(iterator.initializer, feed_dict=feed_dict)
+
+        # Run & log accuracy on test set.
+        _acc = sess.run(accuracy)
+        print('\nAccuracy on test set: {:.2%}'.format(_acc))
 
 
 if __name__ == '__main__':
