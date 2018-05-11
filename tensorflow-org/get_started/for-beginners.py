@@ -15,8 +15,10 @@
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
 
-import tensorflow as tf
+import numpy as np
 import pandas as pd
+
+import tensorflow as tf
 
 # Iris training and testing dataset URL. May change in the future.
 TRAIN_URL = "http://download.tensorflow.org/data/iris_training.csv"
@@ -33,7 +35,16 @@ batch_size = 32
 learning_rate = 1e-2
 
 
-def _preprocess(dataframe: pd.DataFrame) -> tf.data.Dataset:
+def one_hot(values: np.array, dtype=np.int32):
+    u, idx = np.unique(values, return_inverse=True)
+    shape = (values.shape[0], u.shape[0])
+    hot = np.zeros(shape=shape, dtype=dtype)
+    for i, h in zip(idx, hot):
+        h[i] = 1.
+    return hot
+
+
+def preprocess(dataframe: pd.DataFrame) -> tuple:
     """Pre process dataframe into TensorFlow's dataset object.
 
     Args:
@@ -42,17 +53,11 @@ def _preprocess(dataframe: pd.DataFrame) -> tf.data.Dataset:
     Returns:
         dataset (tf.data.Dataset): Dataset object.
     """
-    # Split into features and labels.
+    # Split into features and one-hot labels.
     features = dataframe[CSV_COLUMN_NAMES[:-1]].values
-    labels = dataframe[CSV_COLUMN_NAMES[-1]].values
+    labels = one_hot(dataframe[CSV_COLUMN_NAMES[-1]].values)
 
-    # Create a TensorFlow dataset & apply some pre-processing steps.
-    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
-    dataset = dataset.shuffle(buffer_size=buffer_size)
-    dataset = dataset.batch(batch_size=batch_size)
-
-    # Return the dataset.
-    return dataset
+    return features, labels
 
 
 def load_data() -> tuple:
@@ -72,9 +77,9 @@ def load_data() -> tuple:
     train_df = pd.read_csv(train_path, names=CSV_COLUMN_NAMES, skiprows=1)
     test_df = pd.read_csv(test_path, names=CSV_COLUMN_NAMES, skiprows=1)
 
-    # Pre-process dataframe objects.
-    train = _preprocess(train_df)
-    test = _preprocess(test_df)
+    # Train features and labels.
+    train = preprocess(dataframe=train_df)
+    test = preprocess(dataframe=test_df)
 
     return train, test
 
@@ -86,7 +91,7 @@ class Network(tf.keras.Model):
         # 1st hidden layer
         self.hidden = tf.keras.layers.Dense(units=16, activation='relu', name='hidden')
         self.dropout = tf.keras.layers.Dropout(rate=0.5, name='dropout')
-        self.label = tf.keras.layers.Dense(units=1, name='output')
+        self.label = tf.keras.layers.Dense(units=3, name='output')
 
     def __call__(self, features, **kwargs):
         return self.call(features, **kwargs)
@@ -122,7 +127,7 @@ def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor) -> 
             Mean of the computed loss
     """
     logits = model(features)
-    loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
+    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
     return tf.reduce_mean(loss, name="loss")
 
 
@@ -138,13 +143,19 @@ def train_model(optimizer: tf.train.Optimizer, loss: tf.Tensor):
         & also increments `global_step`.
     """
     # Minimize the loss.
+    # global_step = tf.get_variable("global_step", shape=(),
+    #                               initializer=tf.zeros_initializer,
+    #                               trainable=False)
+    # return optimizer.minimize(loss=loss, global_step=global_step)
     return optimizer.minimize(loss=loss, global_step=tf.train.get_or_create_global_step())
 
 
 if __name__ == '__main__':
     # Load training and testing dataset.
-    train, test = load_data()
+    train_data, test_data = load_data()
 
+
+"""
     # Get train data.
     train_iter = train.make_one_shot_iterator()
     X_train, y_train = train_iter.get_next()
@@ -161,11 +172,19 @@ if __name__ == '__main__':
     loss = loss_func(model=model, features=X_train, labels=y_train)
     train_op = train_model(optimizer=optimizer, loss=loss)
 
+    # Retrieve the optimizer's global step.
+    global_step = tf.train.get_global_step()
+
     # Run within session.
     with tf.Session() as sess:
+        # Initialize global variables.
+        sess.run(tf.global_variables_initializer())
         # Go through training epochs.
         for epoch in range(epochs):
-            # Train the model.
-            _, _loss = sess.run([train_op, loss])
-            print('\r\tEpoch {} of {}\tLoss {:.3f}'.format(epoch + 1, epochs, _loss),
-                  end='')
+
+            for batch in range(120 // batch_size):
+                # Train the model.
+                _, _loss, _global_step = sess.run([train_op, loss, global_step])
+                print(('\rEpoch {:,} of {:,}\tGlobal step {:,}'
+                       '\tLoss {:.3f}').format(epoch + 1, epochs, _global_step, _loss), end='')
+"""
