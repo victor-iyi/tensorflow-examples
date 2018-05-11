@@ -26,6 +26,8 @@ TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
 CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth', 'Species']
 SPECIES = ['Setosa', 'Versicolor', 'Virginica']
 
+# Hyperparameters.
+epochs = 500
 buffer_size = 1000
 batch_size = 32
 learning_rate = 1e-2
@@ -70,12 +72,10 @@ def load_data() -> tuple:
     train_df = pd.read_csv(train_path, names=CSV_COLUMN_NAMES, skiprows=1)
     test_df = pd.read_csv(test_path, names=CSV_COLUMN_NAMES, skiprows=1)
 
-    # Split into features and labels.
-    X_train, y_train = train_df[CSV_COLUMN_NAMES[:-1]].values, train_df[CSV_COLUMN_NAMES[-1]].values
-    X_test, y_test = test_df[CSV_COLUMN_NAMES[:-1]].values, test_df[CSV_COLUMN_NAMES[-1]].values
+    # Pre-process dataframe objects.
+    train = _preprocess(train_df)
+    test = _preprocess(test_df)
 
-    train = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
     return train, test
 
 
@@ -86,7 +86,7 @@ class Network(tf.keras.Model):
         # 1st hidden layer
         self.hidden = tf.keras.layers.Dense(units=16, activation='relu', name='hidden')
         self.dropout = tf.keras.layers.Dropout(rate=0.5, name='dropout')
-        self.label = tf.keras.layers.Dense(units=3, name='output')
+        self.label = tf.keras.layers.Dense(units=1, name='output')
 
     def __call__(self, features, **kwargs):
         return self.call(features, **kwargs)
@@ -110,23 +110,62 @@ class Network(tf.keras.Model):
 
 
 def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor) -> tf.Tensor:
+    """Loss function. Calculate how bad the model is doing on the entire sample.
+
+    Args:
+        model (tf.keras.Model): Instance of Keras' model.
+        features (tf.Tensor): Input features
+        labels (tf.Tensor): Output labels.
+
+    Returns:
+        loss (tf.Tensor):
+            Mean of the computed loss
+    """
     logits = model(features)
     loss = tf.nn.sparse_softmax_cross_entropy_with_logits(logits=logits, labels=labels)
     return tf.reduce_mean(loss, name="loss")
 
 
-def train_op(model: tf.keras.Model, optimizer: tf.train.Optimizer,
-             loss_func: any, x: tf.Tensor, y: tf.Tensor) -> None:
-    # Calculate the loss.
-    loss = loss_func(model, x, y)
+def train_model(optimizer: tf.train.Optimizer, loss: tf.Tensor):
+    """Minimize the loss with respect to the model variables.
 
+    Args:
+        optimizer (tf.train.Optimizer):
+        loss (tf.Tensor): Loss value as defined by a loss function..
+
+    Returns:
+        An Operation that updates the variables in `var_list`
+        & also increments `global_step`.
+    """
     # Minimize the loss.
-    optimizer.minimize(loss=loss,
-                       global_step=tf.train.get_or_create_global_step())
+    return optimizer.minimize(loss=loss, global_step=tf.train.get_or_create_global_step())
 
 
 if __name__ == '__main__':
+    # Load training and testing dataset.
     train, test = load_data()
 
-    iterator = train.make_initializable_iterator()
-    features, labels = iterator.get_next()
+    # Get train data.
+    train_iter = train.make_one_shot_iterator()
+    X_train, y_train = train_iter.get_next()
+
+    # Get test data.
+    test_iter = test.make_one_shot_iterator()
+    X_test, y_test = test_iter.get_next()
+
+    # Initialize model & optimizer.
+    model = Network()
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+
+    # Calculate the loss & train the model.
+    loss = loss_func(model=model, features=X_train, labels=y_train)
+    train_op = train_model(optimizer=optimizer, loss=loss)
+
+    # Run within session.
+    with tf.Session() as sess:
+        # Go through training epochs.
+        for epoch in range(epochs):
+            # Train the model.
+            _, _loss = sess.run([train_op, loss])
+            print('\r\tEpoch {} of {}\tLoss {:.3f}'.format(epoch + 1, epochs, _loss),
+                  end='')
