@@ -154,6 +154,24 @@ if __name__ == '__main__':
     # Load training and testing dataset.
     train_data, test_data = load_data()
 
+    X_plhd = tf.placeholder(dtype=tf.float32, shape=[None, 4])
+    y_plhd = tf.placeholder(dtype=tf.int32, shape=[None, 3])
+
+    # Train & test dataset objects.
+    dataset = tf.data.Dataset.from_tensor_slices(tensors=(X_plhd, y_plhd))
+    dataset = dataset.batch(batch_size=batch_size)
+    dataset = dataset.shuffle(buffer_size=buffer_size)
+
+    # Train & test iterable objects.
+    iterator = dataset.make_initializable_iterator()
+    features, labels = iterator.get_next()
+
+    model = Network()
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+
+    loss = loss_func(model=model, features=features, labels=labels)
+    train_op = train_model(optimizer=optimizer, loss=loss)
+    global_step = tf.train.get_global_step()
 
 """
     # Get train data.
