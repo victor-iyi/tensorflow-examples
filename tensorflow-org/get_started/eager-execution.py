@@ -52,7 +52,7 @@ def loss(model, x, y):
     return tf.losses.sparse_softmax_cross_entropy(labels=y, logits=y_hat)
 
 
-def grad(model: tf.keras.Model, inputs: tf.data.Dataset, targets: tf.data.Dataset):
+def grad(model: tf.keras.Model, inputs: tf.Tensor, targets: tf.Tensor):
     """Estimates the derivative of the loss with respect to the model parameters.
 
     Returns the derivative of the loss w.r.t. weights and biases. The passing
@@ -61,8 +61,8 @@ def grad(model: tf.keras.Model, inputs: tf.data.Dataset, targets: tf.data.Datase
 
     Args:
         model (tf.keras.Model): Keras model.
-        inputs (tf.data.Dataset): Input features.
-        targets (tf.data.Dataset): Target outputs.
+        inputs (tf.Tensor): Input features.
+        targets (tf.Tensor): Target outputs.
 
     Returns:
         gradients (tfe.GradientTape): Gradients of the model w.r.t it's variables.
