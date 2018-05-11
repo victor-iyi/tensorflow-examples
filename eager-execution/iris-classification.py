@@ -24,16 +24,17 @@ from tensorflow.contrib.summary import summary
 # Turn on eager execution.
 tf.enable_eager_execution()
 
+# Hyperparameters.
 buffer_size = 1000
 batch_size = 32
 learning_rate = 1e-2
 
 
-def _parse_line(line):
+def _parse_line(line: any) -> tuple:
     """Perform pre-processing on each row in the CSV file.
 
     Args:
-        line (): Each row of the CSV file.
+        line (any): Each row of the CSV file.
 
     Returns:
         (features, labels) - Parsed features and labels.
@@ -46,7 +47,7 @@ def _parse_line(line):
     return features, labels
 
 
-def load_data():
+def load_data() -> tuple:
     """Load training and testing dataset as a tf.data.Dataset object.
 
     Returns:
@@ -155,7 +156,7 @@ class Network(tf.keras.Model):
         pass
 
 
-def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor):
+def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor) -> tf.Tensor:
     """Cross entropy loss function.
 
     Arguments:
@@ -172,7 +173,8 @@ def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor):
     return tf.reduce_mean(entropy, name="loss")
 
 
-def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer, loss: loss, x: tf.Tensor, y: tf.Tensor):
+def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
+               loss: loss, x: tf.Tensor, y: tf.Tensor) -> None:
     """Training operation. That is, we minimize the loss function here.
 
     Arguments:
