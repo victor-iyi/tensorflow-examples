@@ -83,8 +83,8 @@ def load_data() -> tuple:
                                         origin=TEST_URL)
 
     # Load the downloaded CSV into a pd.DataFrame object.
-    train_df = pd.read_csv(train_path, names=CSV_COLUMN_NAMES, skiprows=1)
-    test_df = pd.read_csv(test_path, names=CSV_COLUMN_NAMES, skiprows=1)
+    train_df = pd.read_csv(train_path, names=CSV_COLUMN_NAMES, header=0)
+    test_df = pd.read_csv(test_path, names=CSV_COLUMN_NAMES, header=0)
 
     # Train features and labels.
     train = preprocess(dataframe=train_df)
