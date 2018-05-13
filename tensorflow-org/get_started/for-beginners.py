@@ -189,7 +189,6 @@ def main():
     # Retrieve the optimizer's global step.
     global_step = tf.train.get_global_step()
 
-    # TODO(victor-iyiola): Estimate model's accuracy on test set.
     logits = model(features)
     correct = tf.equal(tf.argmax(logits, axis=1), tf.argmax(labels, axis=1))
     accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
