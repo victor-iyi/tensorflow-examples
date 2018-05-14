@@ -57,6 +57,15 @@ def pre_process(features, labels):
     return features, labels
 
 
+def process_data(features, labels, batch_size=64, buffer_size=1000):
+
+    dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    dataset = dataset.batch(batch_size=batch_size)
+    dataset = dataset.shuffle(buffer_size=buffer_size)
+
+    return dataset
+
+
 class Model(tf.keras.Model):
     def __init__(self):
         super(Model, self).__init__()
@@ -112,8 +121,13 @@ def main():
     X_train, y_train = pre_process(X_train, y_train)
     X_test, y_test = pre_process(X_test, y_test)
 
-    data_train = tf.data.Dataset.from_tensor_slices((X_train, y_train))
-    data_test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+    data_train = process_data(X_train, y_train,
+                              batch_size=128, buffer_size=1000)
+    data_test = process_data(X_test, y_test,
+                             batch_size=68, buffer_size=1000)
+
+    # for batch, (X, y) in enumerate(data_train):
+    #     pass
 
 
 if __name__ == '__main__':
