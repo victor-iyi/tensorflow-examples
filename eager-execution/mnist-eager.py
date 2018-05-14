@@ -1,4 +1,5 @@
-"""
+"""MNIST classification using TensorFlow's Eager execution mode.
+
    @author 
      Victor I. Afolabi
      Artificial Intelligence & Software Engineer.
@@ -18,6 +19,11 @@ import tensorflow as tf
 
 
 def load_data():
+    """Load the MNIST dataset into train & testing set.
+
+    Returns:
+        train, test (tuple): Training and testing set.
+    """
     train, test = tf.keras.datasets.mnist.load_data()
 
     return train, test
