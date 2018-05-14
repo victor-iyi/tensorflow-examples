@@ -1,21 +1,27 @@
 """MNIST classification using TensorFlow's Eager execution mode.
 
-   @author 
+   @author
      Victor I. Afolabi
      Artificial Intelligence & Software Engineer.
      Email: javafolabi@gmail.com
      GitHub: https://github.com/victor-iyiola
-  
+
    @project
      File: mnist-eager.py
      Created on 14 May, 2018 @ 5:49 PM.
-  
+
    @license
      MIT License
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
-  
+
 """
+import warnings
+warnings.filterwarnings('ignore')
+
+import numpy as np
 import tensorflow as tf
+
+tf.enable_eager_execution()
 
 
 def load_data():
@@ -29,9 +35,68 @@ def load_data():
     return train, test
 
 
-def main():
-    pass
+def pre_process(data):
+    meta_data = {}
 
+
+class Model(tf.keras.Model):
+    def __init__(self):
+        super(Model, self).__init__()
+
+        self.hidden = tf.keras.layers.Conv2D(filters=5,
+                                             kernel_size=2,
+                                             activation='relu')
+        self.pool = tf.keras.layers.MaxPool2D(pool_size=(2, 2))
+        self.flatten = tf.keras.layers.Flatten()
+        self.fc1 = tf.keras.layers.Dense(units=512)
+        self.fc2 = tf.keras.layers.Dense(units=10)
+
+    def call(self, inputs):
+        # Conv & Pooling layer
+        result = self.pool(self.hidden(inputs))
+        # Flatten layer.
+        result = self.flatten(result)
+        # Fully connected layers.
+        result = self.fc2(self.fc1(result))
+        # Output prediction.
+        return result
+
+
+def main():
+    # Logging split.
+    print('\n{}'.format(60 * '-'))
+
+    # Load data & split into training & testing sets.
+    train, test = load_data()
+    X_train, y_train = train
+    X_test, y_test = test
+
+    # Number of training/testing samples.
+    n_train, n_test = y_train.shape[0], y_test.shape[0]
+    print(f'{n_train:,} train samples\t &'
+          f'\t{n_test:,} testing samples')
+
+    # Image dimensions
+    img_shape = X_train.shape[1:]
+    img_size, img_depth = img_shape[0], 1
+    img_size_flat = img_size * img_size * img_depth
+    print(f'Image  = Shape: {img_shape}\tSize: {img_size}'
+          f'\tDepth: {img_depth}\tFlat: {img_size_flat}')
+
+    # Output dimensions
+    classes = np.unique(y_train)
+    num_classes = len(classes)
+    print(f'Labels = Classes: {classes}\tLength: {num_classes}')
+
+    # Logging split.
+    print('{}\n'.format(60 * '-'))
+
+    # One-hot encode labels.
+    y_train = tf.one_hot(indices=classes, depth=num_classes)
+    y_test = tf.one_hot(indices=classes, depth=num_classes)
+
+    X_plhd = tf.placeholder(dtype=tf.float32, shape=(None, 28, 28, 1))
+    y_plhd = tf.placeholder(dtype=tf.int32, shape=(None, num_classes))
 
 if __name__ == '__main__':
     main()
