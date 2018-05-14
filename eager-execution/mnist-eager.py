@@ -35,8 +35,26 @@ def load_data():
     return train, test
 
 
-def pre_process(data):
-    meta_data = {}
+def pre_process(features, labels):
+    """Flatten images & one-hot encode labels.
+
+    Arguments:
+        features {tf.Tensor} -- Dataset images.
+        labels {tf.Tensor} -- Dataset labels.
+
+    Returns:
+        {(tf.Tensor, tf.Tensor)} -- features, labels
+    """
+    # Reshaping image to fit the model.
+    img_size_flat = np.prod(features.shape[1:])
+    features = features.reshape((-1, img_size_flat))
+
+    # One-hot encoding.
+    num_classes = len(np.unique(labels))
+    labels = tf.one_hot(indices=labels, depth=num_classes)
+
+    # Return processed features & labels.
+    return features, labels
 
 
 class Model(tf.keras.Model):
@@ -76,14 +94,14 @@ def main():
     print(f'{n_train:,} train samples\t &'
           f'\t{n_test:,} testing samples')
 
-    # Image dimensions
+    # Image dimensions.
     img_shape = X_train.shape[1:]
     img_size, img_depth = img_shape[0], 1
     img_size_flat = img_size * img_size * img_depth
     print(f'Image  = Shape: {img_shape}\tSize: {img_size}'
           f'\tDepth: {img_depth}\tFlat: {img_size_flat}')
 
-    # Output dimensions
+    # Output dimensions.
     classes = np.unique(y_train)
     num_classes = len(classes)
     print(f'Labels = Classes: {classes}\tLength: {num_classes}')
@@ -91,12 +109,12 @@ def main():
     # Logging split.
     print('{}\n'.format(60 * '-'))
 
-    # One-hot encode labels.
-    y_train = tf.one_hot(indices=classes, depth=num_classes)
-    y_test = tf.one_hot(indices=classes, depth=num_classes)
+    X_train, y_train = pre_process(X_train, y_train)
+    X_test, y_test = pre_process(X_test, y_test)
 
-    X_plhd = tf.placeholder(dtype=tf.float32, shape=(None, 28, 28, 1))
-    y_plhd = tf.placeholder(dtype=tf.int32, shape=(None, num_classes))
+    data_train = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+    data_test = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+
 
 if __name__ == '__main__':
     main()
