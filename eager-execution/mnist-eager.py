@@ -16,11 +16,14 @@
 
 """
 import warnings
+
+# Ignore TensorFlow's deprecation warnings. (ANNOYING!)
 warnings.filterwarnings('ignore')
 
 import numpy as np
 import tensorflow as tf
 
+# Turn on Eager execution mode.
 tf.enable_eager_execution()
 
 
@@ -57,8 +60,19 @@ def pre_process(features, labels):
     return features, labels
 
 
-def process_data(features, labels, batch_size=64, buffer_size=1000):
+def process_data(features: tf.Tensor, labels: tf.Tensor,
+                 batch_size: tf.int32 = 64, buffer_size: tf.int32 = 1000):
+    """Create TensorFlow data object from tensor slices.
 
+    Args:
+        features (tf.Tensor): Dataset input images.
+        labels (tf.Tensor): Dataset one-hot labels.
+        batch_size (tf.int32): Mini batch size.
+        buffer_size (tf.int32): Buffer size for shuffling the dataset.
+
+    Returns:
+        dataset (tf.data.Dataset): TensorFlow's dataset object.
+    """
     dataset = tf.data.Dataset.from_tensor_slices((features, labels))
     dataset = dataset.batch(batch_size=batch_size)
     dataset = dataset.shuffle(buffer_size=buffer_size)
@@ -78,7 +92,7 @@ class Model(tf.keras.Model):
         self.fc1 = tf.keras.layers.Dense(units=512)
         self.fc2 = tf.keras.layers.Dense(units=10)
 
-    def call(self, inputs):
+    def call(self, inputs, **kwargs):
         # Conv & Pooling layer
         result = self.pool(self.hidden(inputs))
         # Flatten layer.
@@ -100,20 +114,20 @@ def main():
 
     # Number of training/testing samples.
     n_train, n_test = y_train.shape[0], y_test.shape[0]
-    print(f'{n_train:,} train samples\t &'
-          f'\t{n_test:,} testing samples')
+    print('{:,} train samples\t&\t{:,} testing samples'
+          .format(n_train, n_test))
 
     # Image dimensions.
     img_shape = X_train.shape[1:]
     img_size, img_depth = img_shape[0], 1
     img_size_flat = img_size * img_size * img_depth
-    print(f'Image  = Shape: {img_shape}\tSize: {img_size}'
-          f'\tDepth: {img_depth}\tFlat: {img_size_flat}')
+    print("Image  = Shape: {}\tSize: {}\tDepth: {}\tFlat: {}"
+          .format(img_shape, img_size, img_depth, img_size_flat))
 
     # Output dimensions.
     classes = np.unique(y_train)
     num_classes = len(classes)
-    print(f'Labels = Classes: {classes}\tLength: {num_classes}')
+    print('Labels = Classes: {}\tLength: {}'.format(classes, num_classes))
 
     # Logging split.
     print('{}\n'.format(60 * '-'))
