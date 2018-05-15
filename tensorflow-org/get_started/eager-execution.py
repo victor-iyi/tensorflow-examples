@@ -18,26 +18,42 @@
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
 
-from iris_data import maybe_download, csv_input_fn
+from iris_data import load_data, SPECIES
 
 # Turn on eager execution.
 tf.enable_eager_execution()
 print("Eager execution status: {}".format(tf.executing_eagerly()))
 
-# Download and load the dataset.
-train_path, test_path = maybe_download()
-train_data = csv_input_fn(train_path, batch_size=32)
-test_data = csv_input_fn(test_path)
 
-# Create a model using Keras.
-model = tf.keras.Sequential([
-    tf.keras.layers.Dense(units=10, activation="relu", input_shape=(4,)),
-    tf.keras.layers.Dense(units=10, activation="relu"),
-    tf.keras.layers.Dense(units=10)
-])
+# noinspection PyAbstractClass
+class Model(tf.keras.Model):
+    def __init__(self, n_classes):
+        super(Model, self).__init__()
+
+        # Model structure.
+        self.hidden1 = tf.keras.layers.Dense(units=10, activation="relu")
+        self.hidden2 = tf.keras.layers.Dense(units=10, activation="relu")
+        self.prediction = tf.keras.layers.Dense(units=n_classes)
+
+    def call(self, inputs, **kwargs):
+        """Implementation of the model's forward pass.
+        
+        Arguments:
+            inputs: Input tensor, or list/tuple of input tensors.
+            **kwargs: Additional keyword arguments.
+        
+        Returns:
+            logits {tf.Tensor} -- Un-normalized output.
+        """
+
+        logits = self.hidden1(inputs)
+        logits = self.hidden2(logits)
+        logits = self.prediction(logits)
+
+        return logits
 
 
-def loss(model, x, y):
+def loss_func(model, x, y):
     """Loss function. How bad is the model doing on the entire training set.
 
     Args:
@@ -49,10 +65,11 @@ def loss(model, x, y):
         loss (tf.Tensor): A real value denoting the loss value of this model.
     """
     y_hat = model(x)
-    return tf.losses.sparse_softmax_cross_entropy(labels=y, logits=y_hat)
+    loss = tf.losses.softmax_cross_entropy(onehot_labels=y, logits=y_hat)
+    return tf.reduce_mean(loss, name="loss")
 
 
-def grad(model: tf.keras.Model, inputs: tf.Tensor, targets: tf.Tensor):
+def grad_func(model: tf.keras.Model, inputs: tf.Tensor, targets: tf.Tensor):
     """Estimates the derivative of the loss with respect to the model parameters.
 
     Returns the derivative of the loss w.r.t. weights and biases. The passing
@@ -68,10 +85,54 @@ def grad(model: tf.keras.Model, inputs: tf.Tensor, targets: tf.Tensor):
         gradients (tfe.GradientTape): Gradients of the model w.r.t it's variables.
     """
     with tfe.GradientTape() as tape:
-        loss_value = loss(model, inputs, targets)
+        loss_value = loss_func(model, inputs, targets)
 
     # Gradient of model w.r.t. it's variables.
     return tape.gradient(loss_value, model.variables)
 
 
-optimizer = tf.train.RMSPropOptimizer(learning_rate=1e-2)
+def process(features: tf.Tensor, labels: tf.Tensor):
+    labels = tf.one_hot(labels, len(SPECIES))
+    return features, labels
+
+
+def main():
+    # Data dimensions & Hyperparameters.
+    n_classes = len(SPECIES)
+    learning_rate, epochs = 1e-2, 5
+    batch_size, buffer_size = 32, 1000
+
+    # Download and load the dataset.
+    train, _ = load_data()
+
+    # Create a TensorFlow Dataset object.
+    train_data = tf.data.Dataset.from_tensor_slices(train)
+    train_data = train_data.map(process)
+    train_data = train_data.batch(batch_size=batch_size)
+    train_data = train_data.shuffle(buffer_size=buffer_size)
+
+    # Create model object & optimizer.
+    model = Model(n_classes=n_classes)
+    optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
+    global_step = tf.train.get_or_create_global_step()
+
+    for epoch in range(1, epochs + 1):
+        try:
+            # Make an iterator to access the data in the dataset.
+            for batch, (features, labels) in enumerate(tfe.Iterator(train_data)):
+                # Calculate gradients of loss w.r.t model variables.
+                grads = grad_func(model=model, inputs=features, targets=labels)
+                # noinspection PyTypeChecker
+                optimizer.apply_gradients(zip(grads, model.variables),
+                                          global_step=global_step)
+
+                loss = loss_func(model, features, labels)
+                print('\rEpoch: {}\tBatch: {:,}\tStep: {:,}\tLoss: {:.3f}'
+                      .format(epoch, batch + 1, global_step.numpy(), loss))
+        except KeyboardInterrupt:
+            print('\nTraining interrupted by user.')
+            break
+
+
+if __name__ == '__main__':
+    main()

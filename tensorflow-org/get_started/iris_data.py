@@ -1,4 +1,5 @@
-"""
+"""Iris dataset utility functions to prepare the dataset.
+
   @author 
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
@@ -14,6 +15,7 @@
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
 
+import numpy as np
 import pandas as pd
 import tensorflow as tf
 
@@ -57,11 +59,13 @@ def load_data(y_name: (str, list, tuple) = "Species"):
 
     # Read the downloaded train CSV file and split into features and labels.
     train = pd.read_csv(train_path, names=CSV_COLUMN_NAMES, header=0)
-    train_X, train_y = train, train.pop(y_name)
+    train_X, train_y = train.drop([y_name], axis=1), train[y_name]
+    train_X, train_y = np.array(train_X, dtype=np.float32), train_y.values
 
     # Read the downloaded test CSV file and split into features and labels.
     test = pd.read_csv(test_path, names=CSV_COLUMN_NAMES, header=0)
-    test_X, test_y = test, test.pop(y_name)
+    test_X, test_y = test.drop([y_name], axis=1), test[y_name]
+    test_X, test_y = np.array(test_X, dtype=np.float32), test_y.values
 
     # Returns list of tuples containing the features & labels for training and testing sets.
     return (train_X, train_y), (test_X, test_y)
