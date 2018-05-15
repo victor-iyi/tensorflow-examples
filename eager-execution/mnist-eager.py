@@ -22,6 +22,7 @@ warnings.filterwarnings('ignore')
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.eager.python import tfe
 
 # Turn on Eager execution mode.
 tf.enable_eager_execution()
@@ -49,8 +50,12 @@ def pre_process(features, labels):
         {(tf.Tensor, tf.Tensor)} -- features, labels
     """
     # Reshaping image to fit the model.
+    # features = features.reshape((-1, 28, 28, 1))
+    features = np.array(features, dtype=np.float32)
     img_size_flat = np.prod(features.shape[1:])
     features = features.reshape((-1, img_size_flat))
+
+    # features = features.reshape((-1, 28, 28, 1))
 
     # One-hot encoding.
     num_classes = len(np.unique(labels))
@@ -84,23 +89,37 @@ class Model(tf.keras.Model):
     def __init__(self):
         super(Model, self).__init__()
 
-        self.hidden = tf.keras.layers.Conv2D(filters=5,
-                                             kernel_size=2,
-                                             activation='relu')
-        self.pool = tf.keras.layers.MaxPool2D(pool_size=(2, 2))
-        self.flatten = tf.keras.layers.Flatten()
+        # self.hidden = tf.keras.layers.Conv2D(filters=5,
+        #                                      kernel_size=2,
+        #                                      activation='relu')
+        # self.pool = tf.keras.layers.MaxPool2D(pool_size=(2, 2))
+        # self.flatten = tf.keras.layers.Flatten()
         self.fc1 = tf.keras.layers.Dense(units=512)
         self.fc2 = tf.keras.layers.Dense(units=10)
 
     def call(self, inputs, **kwargs):
-        # Conv & Pooling layer
-        result = self.pool(self.hidden(inputs))
-        # Flatten layer.
-        result = self.flatten(result)
+        # # Conv & Pooling layer
+        # result = self.pool(self.hidden(inputs))
+        # # Flatten layer.
+        # result = self.flatten(result)
+        result = inputs
         # Fully connected layers.
         result = self.fc2(self.fc1(result))
         # Output prediction.
         return result
+
+
+def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor):
+    logits = model(features)
+    entropy = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits)
+    return tf.reduce_mean(entropy, name="loss")
+
+
+def compute_grads(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor):
+    with tfe.GradientTape() as tape:
+        loss = loss_func(model=model, features=features, labels=labels)
+
+    return tape.gradient(loss, model.variables)
 
 
 def main():
@@ -137,11 +156,51 @@ def main():
 
     data_train = process_data(X_train, y_train,
                               batch_size=128, buffer_size=1000)
-    data_test = process_data(X_test, y_test,
-                             batch_size=68, buffer_size=1000)
+    # data_test = process_data(X_test, y_test,
+    #                          batch_size=68, buffer_size=1000)
 
-    # for batch, (X, y) in enumerate(data_train):
-    #     pass
+    epochs = 5
+    save_path = '../saved/mnist-eager/model.ckpt'
+    save_step = 500
+
+    learning_rate = 1e-2
+
+    model = Model()
+    optimizer = tf.train.AdamOptimizer(learning_rate=learning_rate)
+    global_step = tf.train.get_or_create_global_step()
+    saver = tfe.Checkpoint(model=model, optimizer=optimizer, global_step=global_step)
+
+    print('{0}\n\t\tTRAINING STARTED!\n{0}\n'.format(55 * '-'))
+
+    for epoch in range(epochs):
+        for batch, (features, labels) in enumerate(data_train):
+            try:
+                # Calculate the derivative of loss w.r.t. model variables.
+                grads = compute_grads(model, features, labels)
+                optimizer.apply_gradients(zip(grads, model.variables),
+                                          global_step=tf.train.get_or_create_global_step())
+
+                # Save stuffs for Tensorboard.
+                loss = loss_func(model=model, features=features, labels=labels)
+
+                # Log training progress.
+                print(('\rEpoch: {:,}\tStep: {:,}\tBatch: {:,}'
+                       '\tLoss: {:.3f}').format(epoch + 1, global_step.numpy(), batch + 1, loss.numpy()),
+                      end='')
+
+                if global_step % save_step == 0:
+                    print('\n{}'.format(55 * ''))
+                    print('\nSaving model to {}'.format(save_path))
+                    saver.save(save_path)
+
+            except KeyboardInterrupt:
+                print('\n{}\nTraining interrupted by user'.format(55 * ''))
+                saver.save(save_path)
+                print('Model saved to {}'.format(save_path))
+                break
+
+    # !- End epochs.
+    print('\n\n{0}\n\t\tTRAINING ENDED!\n{0}\n'.format(55 * '-'))
 
 
 if __name__ == '__main__':
