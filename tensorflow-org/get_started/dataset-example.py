@@ -18,7 +18,6 @@ import numpy as np
 
 import tensorflow as tf
 
-
 ######################################################################
 # +------------------------------------------------------------------+
 # | How to create dataset: (5 methods here...)
@@ -128,7 +127,7 @@ del x, dataset, data, iterator, elements, sess
 
 ######################################################################
 # +------------------------------------------------------------------+
-# | Maker:
+# | Real world example and initializable dataset.
 # +------------------------------------------------------------------+
 ######################################################################
 print('\nReal world example:')
@@ -166,4 +165,43 @@ with tf.Session() as sess:
 
 # Clean variables from memory.
 del X_train, y_train, X_test, y_test, dataset, iterator, features, labels
-del X_plhd, y_plhd, epochs, sess, _features, _labels, epoch
+del X_plhd, y_plhd, epochs, sess, _features, _labels
+
+################################################################################################
+# +———————————————————————————————————————————————————————————————————————————————————————————+
+# | Re-initializable dataset.
+# +———————————————————————————————————————————————————————————————————————————————————————————+
+################################################################################################
+print('\nRe-initializable dataset example')
+
+# Training dataset.
+X_train = np.random.sample(size=(100, 2))
+y_train = np.random.sample(size=(100, 1))
+
+# Testing dataset.
+X_test = np.random.sample(size=(10, 2))
+y_test = np.random.sample(size=(10, 1))
+
+train_data = tf.data.Dataset.from_tensor_slices((X_train, y_train))
+test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+
+iterator = tf.data.Iterator.from_structure(output_types=train_data.output_types,
+                                           output_shapes=train_data.output_shapes)
+features, labels = iterator.get_next()
+
+train_init = iterator.make_initializer(dataset=train_data, name="train_dataset")
+test_init = iterator.make_initializer(dataset=test_data, name="test_dataset")
+
+with tf.Session() as sess:
+    # Train dataset initializer.
+    sess.run(train_init)
+    X, y = sess.run([features, labels])
+    print(X, y)
+
+    # Test dataset initializer.
+    sess.run(test_init)
+    X, y = sess.run([features, labels])
+    print(X, y)
+
+del X_train, X_test, y_train, y_test, train_data, test_data, iterator
+del features, labels, train_init, test_init, X, y, sess
