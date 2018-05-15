@@ -18,11 +18,25 @@
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
 
-from iris_data import load_data, SPECIES
+from .iris_data import load_data, SPECIES
 
 # Turn on eager execution.
 tf.enable_eager_execution()
 print("Eager execution status: {}".format(tf.executing_eagerly()))
+
+
+def process(features: tf.Tensor, labels: tf.Tensor):
+    """Pre-process/transform features & labels.
+
+    Arguments:
+        features {tf.Tensor} -- Dataset features.
+        labels {tf.Tensor} -- Dataset labels.
+
+    Returns:
+        features, labels {tuple} -- Transformed features & labels.
+    """
+    labels = tf.one_hot(labels, len(SPECIES))
+    return features, labels
 
 
 # noinspection PyAbstractClass
@@ -53,19 +67,20 @@ class Model(tf.keras.Model):
         return logits
 
 
-def loss_func(model, x, y):
+def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor):
     """Loss function. How bad is the model doing on the entire training set.
 
     Args:
-        model (tf.keras.Model): Keras model.
-        x (dict, tf.data.Dataset): Feature tensor.
-        y (tuple, list, tf.data.Dataset): Target tensor.
+        model {tf.keras.Model}: Keras model.
+        features {tf.Tensor}: Feature tensor.
+        labels {tf.Tensor}: Target tensor.
 
     Returns:
-        loss (tf.Tensor): A real value denoting the loss value of this model.
+        loss {tf.Tensor}:
+            A real value denoting the loss value of this model.
     """
-    y_hat = model(x)
-    loss = tf.losses.softmax_cross_entropy(onehot_labels=y, logits=y_hat)
+    loss = tf.losses.softmax_cross_entropy(onehot_labels=labels,
+                                           logits=model(features))
     return tf.reduce_mean(loss, name="loss")
 
 
@@ -89,11 +104,6 @@ def grad_func(model: tf.keras.Model, inputs: tf.Tensor, targets: tf.Tensor):
 
     # Gradient of model w.r.t. it's variables.
     return tape.gradient(loss_value, model.variables)
-
-
-def process(features: tf.Tensor, labels: tf.Tensor):
-    labels = tf.one_hot(labels, len(SPECIES))
-    return features, labels
 
 
 def main():
