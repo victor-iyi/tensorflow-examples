@@ -160,7 +160,7 @@ def main():
     #                          batch_size=68, buffer_size=1000)
 
     epochs = 5
-    save_path = '../saved/mnist-eager/model.ckpt'
+    save_path = './saved/mnist-eager/model'
     save_step = 500
 
     learning_rate = 1e-2
@@ -173,14 +173,13 @@ def main():
     print('{0}\n\t\tTRAINING STARTED!\n{0}\n'.format(55 * '-'))
 
     for epoch in range(epochs):
-        for batch, (features, labels) in enumerate(data_train):
-            try:
+        try:
+            for batch, (features, labels) in enumerate(data_train):
                 # Calculate the derivative of loss w.r.t. model variables.
                 grads = compute_grads(model, features, labels)
                 optimizer.apply_gradients(zip(grads, model.variables),
                                           global_step=tf.train.get_or_create_global_step())
 
-                # Save stuffs for Tensorboard.
                 loss = loss_func(model=model, features=features, labels=labels)
 
                 # Log training progress.
@@ -188,16 +187,15 @@ def main():
                        '\tLoss: {:.3f}').format(epoch + 1, global_step.numpy(), batch + 1, loss.numpy()),
                       end='')
 
-                if global_step % save_step == 0:
-                    print('\n{}'.format(55 * ''))
+                if global_step.numpy() % save_step == 0:
                     print('\nSaving model to {}'.format(save_path))
                     saver.save(save_path)
 
-            except KeyboardInterrupt:
-                print('\n{}\nTraining interrupted by user'.format(55 * ''))
-                saver.save(save_path)
-                print('Model saved to {}'.format(save_path))
-                break
+        except KeyboardInterrupt:
+            print('\n{}\nTraining interrupted by user'.format(55 * ''))
+            saver.save(file_prefix=save_path)
+            print('Model saved to {}'.format(save_path))
+            break
 
     # !- End epochs.
     print('\n\n{0}\n\t\tTRAINING ENDED!\n{0}\n'.format(55 * '-'))
