@@ -19,6 +19,7 @@ import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe
 
 from .iris_data import load_data, SPECIES
+# from iris_data import load_data, SPECIES
 
 # Turn on eager execution.
 tf.enable_eager_execution()
@@ -37,6 +38,26 @@ def process(features: tf.Tensor, labels: tf.Tensor):
     """
     labels = tf.one_hot(labels, len(SPECIES))
     return features, labels
+
+
+def make_dataset(data: tuple, batch_size=32, buffer_size=1000):
+    """Creates a TensorFlow dataset from tensor slices.
+
+    Args:
+        data (tuple): Tuple containing features & labels.
+        batch_size (int): Mini batch size.
+        buffer_size (int): Buffer size for shuffling dataset.
+
+    Returns:
+        dataset (tf.data.Dataset): Dataset object.
+    """
+    dataset = tf.data.Dataset.from_tensor_slices(data)
+    dataset = dataset.map(process)
+
+    dataset = dataset.batch(batch_size=batch_size)
+    dataset = dataset.shuffle(buffer_size=buffer_size)
+
+    return dataset
 
 
 # noinspection PyAbstractClass
@@ -113,22 +134,27 @@ def main():
     batch_size, buffer_size = 32, 1000
 
     # Download and load the dataset.
-    train, _ = load_data()
+    train, test = load_data()
 
-    # Create a TensorFlow Dataset object.
-    train_data = tf.data.Dataset.from_tensor_slices(train)
-    train_data = train_data.map(process)
-    train_data = train_data.batch(batch_size=batch_size)
-    train_data = train_data.shuffle(buffer_size=buffer_size)
+    # Training dataset object.
+    train_data = make_dataset(data=train,
+                              batch_size=batch_size,
+                              buffer_size=buffer_size)
+    # Testing dataset object.
+    # noinspection PyUnusedLocal
+    test_data = make_dataset(data=test,
+                             batch_size=batch_size,
+                             buffer_size=buffer_size)
 
-    # Create model object & optimizer.
+    # Create model object, optimizer & global step.
     model = Model(n_classes=n_classes)
     optimizer = tf.train.RMSPropOptimizer(learning_rate=learning_rate)
     global_step = tf.train.get_or_create_global_step()
 
+    # Loop through training epochs.
     for epoch in range(1, epochs + 1):
         try:
-            # Make an iterator to access the data in the dataset.
+            # tfe.Iterator to access the data in the dataset.
             for batch, (features, labels) in enumerate(tfe.Iterator(train_data)):
                 # Calculate gradients of loss w.r.t model variables.
                 grads = grad_func(model=model, inputs=features, targets=labels)
@@ -138,7 +164,8 @@ def main():
 
                 loss = loss_func(model, features, labels)
                 print('\rEpoch: {}\tBatch: {:,}\tStep: {:,}\tLoss: {:.3f}'
-                      .format(epoch, batch + 1, global_step.numpy(), loss))
+                      .format(epoch, batch + 1, global_step.numpy(), loss),
+                      end='')
         except KeyboardInterrupt:
             print('\nTraining interrupted by user.')
             break
