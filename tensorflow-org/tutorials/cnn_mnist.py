@@ -72,13 +72,38 @@ def load_data(one_hot=False):
     return (X_train, y_train), (X_test, y_test)
 
 
+def make_dataset(features: dict, labels=None):
+    """Create dataset object from features &/or labels.
+
+    Args:
+        features (dict): Feature columns.
+        labels (): Dataset labels.
+
+    Returns:
+        tf.data.Dataset: Pre-processed dataset object.
+    """
+    # Create dataset from features &/or labels.
+    if labels is not None:
+        dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    else:
+        dataset = tf.data.Dataset.from_tensor_slices(features)
+
+    # Dataset transformation.
+    dataset = dataset.batch(batch_size=args.batch_size)
+    dataset = dataset.shuffle(buffer_size=args.shuffle_rate)
+    dataset = dataset.repeat(count=args.data_transform_count)
+
+    # Return pre-processed dataset object.
+    return dataset
+
+
 def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys):
     """Construct a 2-layer convolutional network.
 
     Arguments:
         features (tf.Tensor):
             Dataset images with shape (batch_size, img_flat) or
-            (batch_size, img_size, img_size, img_depth).
+            (batch_size, img_width, img_height, img_depth).
 
         labels (tf.Tensor):
             Dataset labels (one-hot encoded).
@@ -187,7 +212,8 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                 # Evaluation metrics.
                 eval_metrics_op = {
                     "accuracy": tf.metrics.accuracy(labels=labels,
-                                                    predictions=predictions["classes"])
+                                                    predictions=predictions["classes"],
+                                                    name="accuracy")
                 }
             return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
                                               eval_metric_ops=eval_metrics_op)
@@ -215,11 +241,22 @@ if __name__ == '__main__':
     parser.add_argument('--num_classes', type=int, default=10,
                         help="Number of classes to be predicted.")
 
+    # Dataset arguments.
+    parser.add_argument('--batch_size', type=int, default=128,
+                        help="Mini batch size. Use lower batch size if"
+                             " running on CPU.")
+    parser.add_argument('--shuffle_rate', type=int, default=1000,
+                        help="Dataset shuffle rate.")
+    parser.add_argument('--data_transform_count', type=int, default=5,
+                        help="Dataset transform repeat count."
+                             "Use smaller (or 1) if running on CPU")
+
     # Network arguments.
-    parser.add_argument('--kernel_size', type=list, default=[5, 5],
-                        help="Kernel size for each convolution.")
-    parser.add_argument('--pool_size', type=list, default=[2, 2],
-                        help="Down-sampling filter size.")
+    parser.add_argument('--kernel_size', type=int, default=5,
+                        help="Kernel size for each convolution. "
+                             "default [5, 5]")
+    parser.add_argument('--pool_size', type=int, default=2,
+                        help="Down-sampling filter size. default [2, 2]")
     parser.add_argument('--filter_conv1', type=int, default=32,
                         help="Size of 1st convolutional filters.")
     parser.add_argument('--filter_conv2', type=int, default=64,

@@ -49,13 +49,11 @@ def pre_process(features, labels):
     Returns:
         {(tf.Tensor, tf.Tensor)} -- features, labels
     """
+
     # Reshaping image to fit the model.
-    # features = features.reshape((-1, 28, 28, 1))
     features = np.array(features, dtype=np.float32)
     img_size_flat = np.prod(features.shape[1:])
     features = features.reshape((-1, img_size_flat))
-
-    # features = features.reshape((-1, 28, 28, 1))
 
     # One-hot encoding.
     num_classes = len(np.unique(labels))
@@ -85,6 +83,7 @@ def process_data(features: tf.Tensor, labels: tf.Tensor,
     return dataset
 
 
+# noinspection PyAbstractClass
 class Model(tf.keras.Model):
     def __init__(self):
         super(Model, self).__init__()
@@ -152,7 +151,7 @@ def main():
     print('{}\n'.format(60 * '-'))
 
     X_train, y_train = pre_process(X_train, y_train)
-    X_test, y_test = pre_process(X_test, y_test)
+    # X_test, y_test = pre_process(X_test, y_test)
 
     data_train = process_data(X_train, y_train,
                               batch_size=128, buffer_size=1000)
