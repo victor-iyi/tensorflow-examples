@@ -14,6 +14,7 @@
      MIT License
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
+
 from __future__ import print_function, absolute_import, division
 
 import argparse
@@ -65,6 +66,11 @@ def load_data(one_hot=False):
     # Release train & test from memory.
     del train, test
 
+    # Convert images to np.float32
+    X_train = np.array(X_train, dtype=np.float32)
+    X_test = np.array(X_test, dtype=np.float32)
+
+    # Convert labels to one hot vectors.
     if one_hot:
         y_train = make_one_hot(indices=y_train, depth=10)
         y_test = make_one_hot(indices=y_test, depth=10)
@@ -157,13 +163,12 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                                          filters=args.filter_conv1,
                                          kernel_size=args.kernel_size,
                                          padding="same",
-                                         activation=tf.nn.relu,
-                                         name="convolution")
+                                         activation=tf.nn.relu)
 
                 # Pooling layer #1.
                 pool1 = tf.layers.max_pooling2d(inputs=conv1,
                                                 pool_size=args.pool_size,
-                                                strides=2, name="pooling")
+                                                strides=2, name="my_pool")
 
             # Convolutional block #2.
             with tf.name_scope("conv2"):
@@ -171,13 +176,12 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                 conv2 = tf.layers.conv2d(inputs=pool1,
                                          filters=args.filter_conv2,
                                          kernel_size=args.kernel_size,
-                                         activation=tf.nn.relu,
-                                         name="convolution")
+                                         activation=tf.nn.relu)
 
                 # Pooling layer #2.
                 pool2 = tf.layers.max_pooling2d(inputs=conv2,
                                                 pool_size=args.pool_size,
-                                                strides=2, name="pooling")
+                                                strides=2, name="my_pool")
 
             # Fully connected layer.
             with tf.name_scope("fully_connected"):
@@ -216,8 +220,7 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
         # Calculate loss (for both TRAIN & EVAL modes).
         loss = tf.losses.softmax_cross_entropy(onehot_labels=labels,
                                                logits=logits,
-                                               reduction=tf.losses.Reduction.MEAN,
-                                               name="loss")
+                                               reduction=tf.losses.Reduction.MEAN)
 
         # Configure the training op (for TRAIN mode).
         if mode == tf.estimator.ModeKeys.TRAIN:
@@ -248,16 +251,22 @@ def main():
 
     # Split into image & labels.
     X_train, y_train = train
-    X_test, y_test = test
-
+    # X_test, y_test = test
+    tf.reset_default_graph()
     # Create Estimator.
     clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.model_dir)
 
     # Logging hook to track training progress.
-    log_tensors = {"probabilities": "probabilities"}
+    log_tensors = {"probabilities": "cnn_models/predictions/probabilities"}
     logging_hook = tf.train.LoggingTensorHook(tensors=log_tensors,
                                               every_n_iter=args.log_every,
                                               at_end=True)
+
+    # Train the model.
+    train_input_fn = input_fn(features=X_train, labels=y_train, shuffle=True)
+    clf.train(input_fn=train_input_fn,
+              # hooks=[logging_hook],
+              steps=args.steps)
 
 
 if __name__ == '__main__':
@@ -268,28 +277,26 @@ if __name__ == '__main__':
     parser.add_argument('--img_size', type=int, default=28,
                         help="Image size. The default for MNIST data is 28")
     parser.add_argument('--img_depth', type=int, default=1,
-                        help="Image channel. The default for MNIST data is 1,"
-                             " which signifies image is a Monochrome image.")
+                        help="Image channel. The default for MNIST data is 1, "
+                             "which signifies image is a Monochrome image.")
     parser.add_argument('--num_classes', type=int, default=10,
                         help="Number of classes to be predicted.")
 
     # Dataset arguments.
     parser.add_argument('--batch_size', type=int, default=128,
                         help="Mini batch size. Use lower batch size if running on CPU.")
-    parser.add_argument('--shuffle', type=bool, default=True,
-                        help="Maybe shuffle dataset during training.")
     parser.add_argument('--shuffle_rate', type=int, default=1000,
                         help="Dataset shuffle rate.")
     parser.add_argument('--data_transform_count', type=int, default=5,
-                        help="Dataset transform repeat count."
+                        help="Dataset transform repeat count. "
                              "Use smaller (or 1) if running on CPU")
     parser.add_argument('--feature_col', type=str, default="images",
                         help="Feature column for tf.feature_column")
 
     # Estimator arguments.
     parser.add_argument('--model_dir', type=str, default="../../saved/tutorials/mnist",
-                        help="Specifies the directory where model data (checkpoints)"
-                             " will be saved.")
+                        help="Specifies the directory where model data "
+                             "(checkpoints) will be saved.")
     parser.add_argument('--log_every', type=int, default=50,
                         help="Log specified tensors every ``log_every`` iterations.")
 
@@ -304,26 +311,28 @@ if __name__ == '__main__':
     parser.add_argument('--filter_conv2', type=int, default=64,
                         help="Size of 2nd convolutional filters.")
     parser.add_argument('--dense_units', type=int, default=1024,
-                        help="Number of neurons in the first (and only) fully"
-                             " connected layer.")
+                        help="Number of neurons in the fully connected layer.")
     parser.add_argument('--dropout', type=float, default=0.4,
-                        help="Dropout regularization rate (probability that a given"
-                             " element will be dropped during training).")
+                        help="Dropout regularization rate (probability that a given "
+                             "element will be dropped during training).")
 
     # Training & optimizer arguments.
+    parser.add_argument('--epochs', type=int, default=None,
+                        help="Number of training epochs. Signifies the number of "
+                             "times to loop through a complete training iteration. "
+                             "Default is `None` meaning that the  model will train "
+                             "until the specified number of steps is reached.")
+    parser.add_argument('--steps', type=int, default=1000,
+                        help="Number of training steps. Represents the number of "
+                             "times to loop through a complete mini-batch cycle.")
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Learning rate for RMSPropOptimizer.")
     parser.add_argument('--decay_rate', type=float, default=0.99,
                         help="Decay rate for RMSPropOptimizer.")
-    parser.add_argument('--epochs', type=int, default=None,
-                        help="Number of training epochs. Signifies the number of"
-                             " times to loop through a complete training iteration.")
-    parser.add_argument('--steps', type=int, default=10000,
-                        help="Number of training steps. Represents the number of"
-                             " times to loop through a complete mini-batch cycle.")
 
     # Parse command line arguments.
     args = parser.parse_args()
+    print(args)
 
     # Start program execution.
     main()
