@@ -271,11 +271,11 @@ def main():
                                               at_end=False)
 
     # Train the model.
-    # train_input_fn = input_fn(features=X_train, labels=y_train,
-    #                           epochs=args.epochs, shuffle=True)
-    # clf.train(input_fn=train_input_fn,
-    #           hooks=[logging_hook],
-    #           steps=args.steps)
+    train_input_fn = input_fn(features=X_train, labels=y_train,
+                              epochs=args.epochs, shuffle=True)
+    clf.train(input_fn=train_input_fn,
+              hooks=[logging_hook],
+              steps=args.steps)
 
     # Evaluate the model.
     eval_input_fn = input_fn(features=X_test, labels=y_test,
