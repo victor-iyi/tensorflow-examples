@@ -73,62 +73,92 @@ def load_data(one_hot=False):
 
 
 def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys):
-    with tf.name_scope('cnn_model'):
-        # Input layer.
-        input_layer = tf.reshape(tensor=features["x"],
-                                 shape=[-1, args.img_size, args.img_size, args.img_depth],
-                                 name="input_layer")
+    """Construct a 2-layer convolutional network.
 
-        # Convolutional layer #1.
-        conv1 = tf.layers.conv2d(inputs=input_layer,
-                                 filters=args.filter_conv1,
-                                 kernel_size=args.kernel_size,
-                                 padding="same",
-                                 activation=tf.nn.relu,
-                                 name="conv_layer_1")
+    Arguments:
+        features (tf.Tensor):
+            Dataset images with shape (batch_size, img_flat) or
+            (batch_size, img_size, img_size, img_depth).
 
-        # Pooling layer #1.
-        pool1 = tf.layers.max_pooling2d(inputs=conv1,
-                                        pool_size=args.pool_size,
-                                        strides=2, name="pool_layer_1")
+        labels (tf.Tensor):
+            Dataset labels (one-hot encoded).
 
-        # Convolutional layer #2.
-        conv2 = tf.layers.conv2d(inputs=pool1,
-                                 filters=args.filter_conv2,
-                                 kernel_size=args.kernel_size,
-                                 activation=tf.nn.relu,
-                                 name="conv_layer_2")
+        mode (tf.estimator.ModeKeys):
+            One of tf.estimator.ModeKeys.PREDICT, tf.estimator.ModeKeys.TRAIN,
+            or tf.estimator.ModeKeys.EVAL.
 
-        # Pooling layer #2.
-        pool2 = tf.layers.max_pooling2d(inputs=conv2,
-                                        pool_size=args.pool_size,
-                                        strides=2, name="pool_layer_2")
+    Returns:
+        tf.estimator.EstimatorSpec:
+            Ops and objects returned from `model_fn` and passed to
+            tf.estimator.Estimator.
+    """
+    # Constructing a Convolutional Model.
+    with tf.name_scope("cnn_model"):
+        # Model Architecture/layers.
+        with tf.name_scope("layers"):
+            with tf.name_scope("input"):
+                # Input layer.
+                input_layer = tf.reshape(tensor=features["x"],
+                                         shape=[-1, args.img_size, args.img_size, args.img_depth],
+                                         name="reshape")
 
-        # Flatten layer (Prep for fully connected layers).
-        flatten = tf.layers.flatten(inputs=pool2, name="flatten_layer")
+            # Convolutional block #1.
+            with tf.name_scope("conv1"):
+                # Convolutional layer #1.
+                conv1 = tf.layers.conv2d(inputs=input_layer,
+                                         filters=args.filter_conv1,
+                                         kernel_size=args.kernel_size,
+                                         padding="same",
+                                         activation=tf.nn.relu,
+                                         name="convolution")
 
-        # Fully Connected or Dense layer #1.
-        dense = tf.layers.dense(inputs=flatten,
-                                units=args.dense_units,
-                                activation=tf.nn.relu,
-                                name="fully_connected_layer")
+                # Pooling layer #1.
+                pool1 = tf.layers.max_pooling2d(inputs=conv1,
+                                                pool_size=args.pool_size,
+                                                strides=2, name="pooling")
 
-        # Dropout for regularization.
-        dropout = tf.layers.dropout(inputs=dense,
-                                    rate=args.dropout,
-                                    training=mode == tf.estimator.ModeKeys.TRAIN,
-                                    name="dropout")
+            # Convolutional block #2.
+            with tf.name_scope("conv2"):
+                # Convolutional layer #2.
+                conv2 = tf.layers.conv2d(inputs=pool1,
+                                         filters=args.filter_conv2,
+                                         kernel_size=args.kernel_size,
+                                         activation=tf.nn.relu,
+                                         name="convolution")
 
-        # Logits layer.
-        logits = tf.layers.dense(inputs=dropout,
-                                 units=args.num_classes,
-                                 name="logits")
+                # Pooling layer #2.
+                pool2 = tf.layers.max_pooling2d(inputs=conv2,
+                                                pool_size=args.pool_size,
+                                                strides=2, name="pooling")
 
-        # Predictions.
+            # Fully connected layer.
+            with tf.name_scope("fully_connected"):
+                # Flatten layer (Prep for fully connected layers).
+                flatten = tf.layers.flatten(inputs=pool2, name="flatten")
+
+                # Fully connected layer activation.
+                dense = tf.layers.dense(inputs=flatten,
+                                        units=args.dense_units,
+                                        activation=tf.nn.relu,
+                                        name="dense")
+
+                # Dropout for regularization.
+                dropout = tf.layers.dropout(inputs=dense,
+                                            rate=args.dropout,
+                                            training=mode == tf.estimator.ModeKeys.TRAIN,
+                                            name="dropout")
+
+            # Output layer.
+            with tf.name_scope("output"):
+                logits = tf.layers.dense(inputs=dropout,
+                                         units=args.num_classes,
+                                         name="logits")
+
+        # Predictions (classes & probabilities).
         with tf.name_scope("predictions"):
             predictions = {
                 "classes": tf.argmax(input=logits, axis=1, name="classes"),
-                "prob": tf.nn.softmax(logits=logits, name="probabilities")
+                "probabilities": tf.nn.softmax(logits=logits, name="probabilities")
             }
 
         # If mode=tf.estimator.ModeKeys.PREDICT, return the predictions.
@@ -140,6 +170,27 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                                                logits=logits,
                                                reduction=tf.losses.Reduction.MEAN,
                                                name="loss")
+
+        # Configure the training op (for TRAIN mode).
+        if mode == tf.estimator.ModeKeys.TRAIN:
+            with tf.name_scope("train"):
+                optimizer = tf.train.RMSPropOptimizer(learning_rate=args.learning_rate,
+                                                      decay=args.decay_rate)
+                train_op = optimizer.minimize(loss=loss,
+                                              global_step=tf.train.get_or_create_global_step(),
+                                              name="train_op")
+            return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
+
+        # Add Evaluation metrics (for EVAL mode).
+        if mode == tf.estimator.ModeKeys.EVAL:
+            with tf.name_scope("evaluation"):
+                # Evaluation metrics.
+                eval_metrics_op = {
+                    "accuracy": tf.metrics.accuracy(labels=labels,
+                                                    predictions=predictions["classes"])
+                }
+            return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
+                                              eval_metric_ops=eval_metrics_op)
 
 
 def main():
@@ -179,6 +230,12 @@ if __name__ == '__main__':
     parser.add_argument('--dropout', type=float, default=0.4,
                         help="Dropout regularization rate (probability that a given"
                              " element will be dropped during training).")
+
+    # Optimizer (tf.train.RMSPropOptimizer).
+    parser.add_argument('--learning_rate', type=float, default=1e-3,
+                        help="Learning rate for RMSPropOptimizer.")
+    parser.add_argument('--decay_rate', type=float, default=0.99,
+                        help="Decay rate for RMSPropOptimizer.")
 
     # Checkpoints & savers.
     parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/mnist",
