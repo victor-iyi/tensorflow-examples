@@ -306,10 +306,10 @@ if __name__ == '__main__':
                         help="Dataset transform repeat count. "
                              "Use smaller (or 1) if running on CPU")
     parser.add_argument('--feature_col', type=str, default="images",
-                        help="Feature column for tf.feature_column")
+                        help="Feature column label for tf.feature_column")
 
     # Estimator arguments.
-    parser.add_argument('--model_dir', type=str, default="../../saved/tutorials/mnist",
+    parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/mnist",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
     parser.add_argument('--log_every', type=int, default=50,
