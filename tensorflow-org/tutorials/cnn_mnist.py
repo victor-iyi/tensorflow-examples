@@ -259,7 +259,7 @@ def main():
     X_test, y_test = test
 
     # Create Estimator.
-    clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.model_dir)
+    clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.logdir)
 
     # Logging hook to track training progress. Tensors to log.
     log_tensors = {
@@ -310,6 +310,9 @@ if __name__ == '__main__':
 
     # Estimator arguments.
     parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/mnist",
+                        help="Specifies the directory where model data "
+                             "(checkpoints) will be saved.")
+    parser.add_argument('--logdir', type=str, default="../../saved/tutorials/mnist",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
     parser.add_argument('--log_every', type=int, default=50,
