@@ -25,6 +25,9 @@ import tensorflow as tf
 # TensorFlow log level.
 tf.logging.set_verbosity(tf.logging.INFO)
 
+# Clear the default graph.
+tf.reset_default_graph()
+
 # Command line arguments.
 args = argparse.Namespace
 
@@ -106,12 +109,14 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None):
     return dataset
 
 
-def input_fn(features: np.ndarray, labels: np.ndarray = None, shuffle: bool = False):
+def input_fn(features: np.ndarray, labels: np.ndarray = None,
+             epochs: int = 1, shuffle: bool = False):
     """Creates input function given features & (maybe) labels.
 
     Args:
         features (np.ndarray): Input images.
         labels (np.ndarray): Data targets.
+        epochs (int): Number of passes through data.
         shuffle (bool): Maybe shuffle dataset.
 
     Returns:
@@ -121,7 +126,7 @@ def input_fn(features: np.ndarray, labels: np.ndarray = None, shuffle: bool = Fa
     return tf.estimator.inputs.numpy_input_fn(
         x={args.feature_col: features},
         y=labels,
-        num_epochs=args.epochs,
+        num_epochs=epochs,
         shuffle=shuffle
     )
 
@@ -231,14 +236,14 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                                               global_step=tf.train.get_or_create_global_step(),
                                               name="train_op")
             return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
-
+        print(predictions)
         # Add Evaluation metrics (for EVAL mode).
         if mode == tf.estimator.ModeKeys.EVAL:
             with tf.name_scope("evaluation"):
                 # Evaluation metrics.
                 eval_metrics_op = {
                     "accuracy": tf.metrics.accuracy(labels=labels,
-                                                    predictions=predictions["classes"],
+                                                    predictions=predictions["probabilities"],
                                                     name="accuracy")
                 }
             return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
@@ -251,22 +256,32 @@ def main():
 
     # Split into image & labels.
     X_train, y_train = train
-    # X_test, y_test = test
-    tf.reset_default_graph()
+    X_test, y_test = test
+
     # Create Estimator.
     clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.model_dir)
 
-    # Logging hook to track training progress.
-    log_tensors = {"probabilities": "cnn_models/predictions/probabilities"}
+    # Logging hook to track training progress. Tensors to log.
+    log_tensors = {
+        # Probability tensor name (in the default graph).
+        "probabilities": "cnn_model/predictions/probabilities:0",
+    }
     logging_hook = tf.train.LoggingTensorHook(tensors=log_tensors,
                                               every_n_iter=args.log_every,
-                                              at_end=True)
+                                              at_end=False)
 
     # Train the model.
-    train_input_fn = input_fn(features=X_train, labels=y_train, shuffle=True)
-    clf.train(input_fn=train_input_fn,
-              # hooks=[logging_hook],
-              steps=args.steps)
+    # train_input_fn = input_fn(features=X_train, labels=y_train,
+    #                           epochs=args.epochs, shuffle=True)
+    # clf.train(input_fn=train_input_fn,
+    #           hooks=[logging_hook],
+    #           steps=args.steps)
+
+    # Evaluate the model.
+    eval_input_fn = input_fn(features=X_test, labels=y_test,
+                             epochs=1, shuffle=False)
+    eval_results = clf.evaluate(input_fn=eval_input_fn)
+    print(eval_results)
 
 
 if __name__ == '__main__':
