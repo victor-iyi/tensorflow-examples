@@ -86,6 +86,23 @@ def gen_data(file: str, max_files: int = 50):
             break
 
 
+def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
+    """Returns a one-hot array.
+
+    Args:
+        indices (np.ndarray): Array to be converted.
+        depth (int): How many elements per item.
+        dtype (np.dtype): Encoded array data type.
+
+    Returns:
+        one_hot (np.ndarray): One-hot encoded array.
+    """
+    hot = np.zeros(shape=(indices.shape[0], depth), dtype=dtype)
+    for i, index in enumerate(indices):
+        hot[i, index] = 1.
+    return hot
+
+
 if __name__ == '__main__':
     X, y = fake_data(128, size=32, channels=1)
     print('X.shape = {}\ty.shape = {}'.format(X.shape, y.shape))
