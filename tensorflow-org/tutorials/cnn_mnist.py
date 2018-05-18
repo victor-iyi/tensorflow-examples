@@ -72,16 +72,19 @@ def load_data(one_hot=False):
     return (X_train, y_train), (X_test, y_test)
 
 
-def make_dataset(features: dict, labels=None):
+def make_dataset(features: np.ndarray, labels: np.ndarray = None):
     """Create dataset object from features &/or labels.
 
     Args:
-        features (dict): Feature columns.
-        labels (): Dataset labels.
+        features (np.ndarray): Feature column.
+        labels (np.ndarray): Dataset labels.
 
     Returns:
         tf.data.Dataset: Pre-processed dataset object.
     """
+    # Give feature column a corresponding label.
+    features = {args.feature_col: features}
+
     # Create dataset from features &/or labels.
     if labels is not None:
         dataset = tf.data.Dataset.from_tensor_slices((features, labels))
@@ -95,6 +98,26 @@ def make_dataset(features: dict, labels=None):
 
     # Return pre-processed dataset object.
     return dataset
+
+
+def input_fn(features: np.ndarray, labels: np.ndarray = None, shuffle: bool = False):
+    """Creates input function given features & (maybe) labels.
+
+    Args:
+        features (np.ndarray): Input images.
+        labels (np.ndarray): Data targets.
+        shuffle (bool): Maybe shuffle dataset.
+
+    Returns:
+        Function, that has signature of ()->(dict of `features`, `targets`)
+    """
+    # Using raw numpy input function. (We only have pandas & numpy).
+    return tf.estimator.inputs.numpy_input_fn(
+        x={args.feature_col: features},
+        y=labels,
+        num_epochs=args.epochs,
+        shuffle=shuffle
+    )
 
 
 def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys):
@@ -123,7 +146,7 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
         with tf.name_scope("layers"):
             with tf.name_scope("input"):
                 # Input layer.
-                input_layer = tf.reshape(tensor=features["x"],
+                input_layer = tf.reshape(tensor=features[args.feature_col],
                                          shape=[-1, args.img_size, args.img_size, args.img_depth],
                                          name="reshape")
 
@@ -227,6 +250,15 @@ def main():
     X_train, y_train = train
     X_test, y_test = test
 
+    # Create Estimator.
+    clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.model_dir)
+
+    # Logging hook to track training progress.
+    log_tensors = {"probabilities": "probabilities"}
+    logging_hook = tf.train.LoggingTensorHook(tensors=log_tensors,
+                                              every_n_iter=args.log_every,
+                                              at_end=True)
+
 
 if __name__ == '__main__':
     # Command line argument parser.
@@ -243,13 +275,23 @@ if __name__ == '__main__':
 
     # Dataset arguments.
     parser.add_argument('--batch_size', type=int, default=128,
-                        help="Mini batch size. Use lower batch size if"
-                             " running on CPU.")
+                        help="Mini batch size. Use lower batch size if running on CPU.")
+    parser.add_argument('--shuffle', type=bool, default=True,
+                        help="Maybe shuffle dataset during training.")
     parser.add_argument('--shuffle_rate', type=int, default=1000,
                         help="Dataset shuffle rate.")
     parser.add_argument('--data_transform_count', type=int, default=5,
                         help="Dataset transform repeat count."
                              "Use smaller (or 1) if running on CPU")
+    parser.add_argument('--feature_col', type=str, default="images",
+                        help="Feature column for tf.feature_column")
+
+    # Estimator arguments.
+    parser.add_argument('--model_dir', type=str, default="../../saved/tutorials/mnist",
+                        help="Specifies the directory where model data (checkpoints)"
+                             " will be saved.")
+    parser.add_argument('--log_every', type=int, default=50,
+                        help="Log specified tensors every ``log_every`` iterations.")
 
     # Network arguments.
     parser.add_argument('--kernel_size', type=int, default=5,
@@ -268,15 +310,17 @@ if __name__ == '__main__':
                         help="Dropout regularization rate (probability that a given"
                              " element will be dropped during training).")
 
-    # Optimizer (tf.train.RMSPropOptimizer).
+    # Training & optimizer arguments.
     parser.add_argument('--learning_rate', type=float, default=1e-3,
                         help="Learning rate for RMSPropOptimizer.")
     parser.add_argument('--decay_rate', type=float, default=0.99,
                         help="Decay rate for RMSPropOptimizer.")
-
-    # Checkpoints & savers.
-    parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/mnist",
-                        help="Path to save checkpoint files.")
+    parser.add_argument('--epochs', type=int, default=None,
+                        help="Number of training epochs. Signifies the number of"
+                             " times to loop through a complete training iteration.")
+    parser.add_argument('--steps', type=int, default=10000,
+                        help="Number of training steps. Represents the number of"
+                             " times to loop through a complete mini-batch cycle.")
 
     # Parse command line arguments.
     args = parser.parse_args()
