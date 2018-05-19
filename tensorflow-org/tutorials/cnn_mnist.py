@@ -40,6 +40,20 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
         depth (int): How many elements per item.
         dtype (np.dtype): Encoded array data type.
 
+    Examples:
+        ```python
+        >>> y = np.random.randint(low=0, high=10, size=(5,))
+        >>> print(y)
+        [4 9 6 7 5]
+        >>> y_hot = make_one_hot(indices=y, depth=10)
+        >>> print(y_hot)
+        [[0 0 0 0 1 0 0 0 0 0]
+         [0 0 0 0 0 0 0 0 0 1]
+         [0 0 0 0 0 0 1 0 0 0]
+         [0 0 0 0 0 0 0 1 0 0]
+         [0 0 0 0 0 1 0 0 0 0]]
+        ```
+
     Returns:
         one_hot (np.ndarray): One-hot encoded array.
     """
@@ -55,6 +69,19 @@ def load_data(one_hot=False):
     Args:
         one_hot (bool):
             Maybe convert labels to one-hot arrays.
+
+    Examples:
+        ```python
+        >>> train, test = load_data(one_hot=True)
+        >>> X_train, y_train = train
+        >>> X_test, y_test = test
+        >>> print('Train: images = {}\t labels = {}'.format(X_train.shape, y_train.shape))
+        Train: images = (60000, 28, 28)	 labels = (60000, 10)
+
+        >>> print('Test: images = {}\t labels = {}'.format(X_test.shape, y_test.shape))
+        Test: images = (10000, 28, 28)	 labels = (10000, 10)
+
+        ```
 
     Returns:
         tuple: train, test
