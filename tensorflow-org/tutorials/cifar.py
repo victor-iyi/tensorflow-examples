@@ -32,6 +32,30 @@ args = None
 
 
 def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
+    """Returns a one-hot array.
+
+        Args:
+            indices (np.ndarray): Array to be converted.
+            depth (int): How many elements per item.
+            dtype (np.dtype): Encoded array data type.
+
+        Examples:
+            ```python
+            >>> y = np.random.randint(low=0, high=10, size=(5,))
+            >>> print(y)
+            [4 9 6 7 5]
+            >>> y_hot = make_one_hot(indices=y, depth=10)
+            >>> print(y_hot)
+            [[0 0 0 0 1 0 0 0 0 0]
+             [0 0 0 0 0 0 0 0 0 1]
+             [0 0 0 0 0 0 1 0 0 0]
+             [0 0 0 0 0 0 0 1 0 0]
+             [0 0 0 0 0 1 0 0 0 0]]
+            ```
+
+        Returns:
+            one_hot (np.ndarray): One-hot encoded array.
+    """
     hot = np.zeros(shape=(indices.shape[0], depth), dtype=dtype)
 
     for i, index in enumerate(indices):
@@ -41,6 +65,28 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
 
 
 def load_data(one_hot: bool = False):
+    """Load MNIST dataset.
+
+        Args:
+            one_hot (bool):
+                Maybe convert labels to one-hot arrays.
+
+        Examples:
+            ```python
+            >>> train, test = load_data(one_hot=True)
+            >>> X_train, y_train = train
+            >>> X_test, y_test = test
+            >>> print('Train: images = {}\t labels = {}'.format(X_train.shape, y_train.shape))
+            Train: images = (60000, 28, 28)	 labels = (60000, 10)
+
+            >>> print('Test: images = {}\t labels = {}'.format(X_test.shape, y_test.shape))
+            Test: images = (10000, 28, 28)	 labels = (10000, 10)
+
+            ```
+
+        Returns:
+            tuple: train, test
+    """
     # Download dataset.
     train, test = tf.keras.datasets.cifar10.load_data()
 
@@ -61,6 +107,15 @@ def load_data(one_hot: bool = False):
 
 
 def make_dataset(features: np.ndarray, labels: np.ndarray = None):
+    """Create dataset object from features &/or labels.
+
+        Args:
+            features (np.ndarray): Feature column.
+            labels (np.ndarray): Dataset labels.
+
+        Returns:
+            tf.data.Dataset: Pre-processed dataset object.
+    """
     features = {args.feature_col: features}
 
     if labels is not None:
@@ -77,6 +132,17 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None):
 
 def input_fn(features: np.ndarray, labels: np.ndarray = None,
              epochs: int = 1, shuffle: bool = False):
+    """Creates input function given features & (maybe) labels.
+
+        Args:
+            features (np.ndarray): Input images.
+            labels (np.ndarray): Data targets.
+            epochs (int): Number of passes through data.
+            shuffle (bool): Maybe shuffle dataset.
+
+        Returns:
+            Function, that has signature of ()->(dict of `features`, `targets`)
+    """
     return tf.estimator.inputs.numpy_input_fn(
         x={args.feature_col: features},
         y=labels,
@@ -88,6 +154,25 @@ def input_fn(features: np.ndarray, labels: np.ndarray = None,
 
 
 def model_fn(features: tf.Tensor, labels: tf.Tensor, mode=tf.estimator.ModeKeys):
+    """Construct a 2-layer convolutional network.
+
+        Arguments:
+            features (tf.Tensor):
+                Dataset images with shape (batch_size, img_flat) or
+                (batch_size, img_width, img_height, img_depth).
+
+            labels (tf.Tensor):
+                Dataset labels (one-hot encoded).
+
+            mode (tf.estimator.ModeKeys):
+                One of tf.estimator.ModeKeys.PREDICT, tf.estimator.ModeKeys.TRAIN,
+                or tf.estimator.ModeKeys.EVAL.
+
+        Returns:
+            tf.estimator.EstimatorSpec:
+                Ops and objects returned from `model_fn` and passed to
+                tf.estimator.Estimator.
+    """
     with tf.name_scope("model"):
         # Network layers.
         with tf.name_scope("layers"):
@@ -139,7 +224,7 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode=tf.estimator.ModeKeys)
         with tf.name_scope("prediction"):
             predictions = {
                 "classes": tf.argmax(input=logits, axis=1, name="classes"),
-                "probabilities": tf.nn.softmax(logits=logits, name="probabilities")
+                "probabilities": tf.nn.softmax(logits=logits, name="probabilities"),
             }
 
         # Return predictions (if mode == PREDICT).
@@ -187,17 +272,21 @@ def main():
     X_test, y_test = test
 
     log_tensors = {
-        "accuracy": "model/evaluate/accuracy/value:0"
+        # "labels": "fifo_queue_DequeueUpTo:2",
+        "output": "model/prediction/classes:0",
     }
     hooks = tf.train.LoggingTensorHook(tensors=log_tensors,
                                        every_n_iter=args.log_every,
                                        at_end=True)
 
-    clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.save_dir)
+    # Classifier.
+    clf = tf.estimator.Estimator(model_fn=model_fn,
+                                 model_dir=args.logdir)
+
     # Train the model.
-    # train_input_fn = input_fn(features=X_train, labels=y_train,
-    #                           epochs=args.epochs, shuffle=True)
-    # clf.train(train_input_fn, hooks=[hooks], max_steps=args.steps)
+    train_input_fn = input_fn(features=X_train, labels=y_train,
+                              epochs=args.epochs, shuffle=True)
+    clf.train(train_input_fn, hooks=[hooks], max_steps=args.steps)
 
     # Evaluate the model.
     eval_input_fn = input_fn(features=X_test, labels=y_test, epochs=1)
@@ -236,7 +325,7 @@ if __name__ == '__main__':
     parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/cifar",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
-    parser.add_argument('--logdir', type=str, default="../../saved/tutorials/cifar",
+    parser.add_argument('--logdir', type=str, default="../../logs/tutorials/cifar",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
     parser.add_argument('--log_every', type=int, default=50,

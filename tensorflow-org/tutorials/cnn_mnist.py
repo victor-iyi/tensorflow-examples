@@ -63,7 +63,7 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
     return hot
 
 
-def load_data(one_hot=False):
+def load_data(one_hot: bool = False):
     """Load MNIST dataset.
 
     Args:
@@ -307,7 +307,6 @@ def main():
 
     print('Global steps = {:,}\tAccuracy = {:.02%}\tLoss = {:.4f}'
           .format(results['global_step'], results['accuracy'], results['loss']))
-
 
 
 if __name__ == '__main__':
