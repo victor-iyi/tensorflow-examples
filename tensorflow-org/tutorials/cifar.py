@@ -24,6 +24,9 @@ import tensorflow as tf
 # Rest TensorFlow's default graph.
 tf.reset_default_graph()
 
+# TensorFlow log level (see what's going on during training).
+tf.logging.set_verbosity(tf.logging.INFO)
+
 # Command line argument.
 args = None
 
@@ -73,14 +76,14 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None):
 
 
 def input_fn(features: np.ndarray, labels: np.ndarray = None,
-             epochs: int = 1, shuffle: bool = None):
+             epochs: int = 1, shuffle: bool = False):
     return tf.estimator.inputs.numpy_input_fn(
         x={args.feature_col: features},
         y=labels,
         batch_size=args.batch_size,
         num_epochs=epochs,
         shuffle=shuffle,
-        num_threads=2
+        num_threads=2 if shuffle else 1
     )
 
 
@@ -198,7 +201,8 @@ def main():
     clf.train(train_input_fn, hooks=[hooks])
 
     eval_input_fn = input_fn(features=X_test, labels=y_test, epochs=1)
-    clf.evaluate(eval_input_fn, steps=args.steps)
+    eval_results = clf.evaluate(eval_input_fn, steps=args.steps)
+    print(eval_results)
 
 
 if __name__ == '__main__':
@@ -226,10 +230,10 @@ if __name__ == '__main__':
                         help="Feature column label for tf.feature_column")
 
     # Estimator arguments.
-    parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/mnist",
+    parser.add_argument('--save_dir', type=str, default="../../saved/tutorials/cifar",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
-    parser.add_argument('--logdir', type=str, default="../../saved/tutorials/mnist",
+    parser.add_argument('--logdir', type=str, default="../../saved/tutorials/cifar",
                         help="Specifies the directory where model data "
                              "(checkpoints) will be saved.")
     parser.add_argument('--log_every', type=int, default=50,
