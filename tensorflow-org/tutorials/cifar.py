@@ -34,7 +34,7 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
     return hot
 
 
-def load_data(one_hot=True):
+def load_data(one_hot: bool = False):
     # Download dataset.
     train, test = tf.keras.datasets.cifar10.load_data()
 
@@ -48,14 +48,39 @@ def load_data(one_hot=True):
 
     # Convert to one-hot.
     if one_hot:
-        y_train = make_one_hot(indices=y_train, depth=10)
-        y_test = make_one_hot(indices=y_test, depth=10)
+        y_train = make_one_hot(indices=y_train, depth=args.num_classes)
+        y_test = make_one_hot(indices=y_test, depth=args.num_classes)
 
     return (X_train, y_train), (X_test, y_test)
 
 
-def main():
+def make_dataset(features: np.ndarray, labels: np.ndarray = None):
+    features = {args.feature_col: features}
+
+    if labels is not None:
+        dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    else:
+        dataset = tf.data.Dataset.from_tensor_slices(features)
+
+    # Transform dataset.
+    dataset = dataset.shuffle(buffer_size=args.buffer_size)
+    dataset = dataset.batch(batch_size=args.batch_size)
+
+    return dataset
+
+
+def model_fn(inputs: tf.Tensor, labels: tf.Tensor, mode=tf.estimator.ModeKeys):
     pass
+
+
+def main():
+    train, test = load_data(one_hot=True)
+
+    X_train, y_train = train
+    X_test, y_test = test
+
+    train_data = tf.data.Dataset.from_tensor_slices((X_train, X_test))
+    test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 
 
 if __name__ == '__main__':
