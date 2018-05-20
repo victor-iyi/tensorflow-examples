@@ -221,21 +221,18 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                 flatten = tf.layers.flatten(inputs=pool2, name="flatten")
 
                 # Fully connected layer activation.
-                dense = tf.layers.dense(inputs=flatten,
-                                        units=args.dense_units,
+                dense = tf.layers.dense(inputs=flatten, units=args.dense_units,
                                         activation=tf.nn.relu,
                                         name="dense")
 
                 # Dropout for regularization.
-                dropout = tf.layers.dropout(inputs=dense,
-                                            rate=args.dropout,
+                dropout = tf.layers.dropout(inputs=dense, rate=args.dropout,
                                             training=mode == tf.estimator.ModeKeys.TRAIN,
                                             name="dropout")
 
             # Output layer.
             with tf.name_scope("output"):
-                logits = tf.layers.dense(inputs=dropout,
-                                         units=args.num_classes,
+                logits = tf.layers.dense(inputs=dropout, units=args.num_classes,
                                          name="logits")
 
         # Predictions (classes & probabilities).
@@ -263,7 +260,7 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
                                               global_step=tf.train.get_or_create_global_step(),
                                               name="train_op")
             return tf.estimator.EstimatorSpec(mode=mode, loss=loss, train_op=train_op)
-        print(predictions)
+
         # Add Evaluation metrics (for EVAL mode).
         if mode == tf.estimator.ModeKeys.EVAL:
             with tf.name_scope("evaluation"):

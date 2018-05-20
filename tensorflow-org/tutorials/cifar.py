@@ -21,6 +21,9 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
+# Rest TensorFlow's default graph.
+tf.reset_default_graph()
+
 # Command line argument.
 args = None
 
@@ -69,8 +72,109 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None):
     return dataset
 
 
-def model_fn(inputs: tf.Tensor, labels: tf.Tensor, mode=tf.estimator.ModeKeys):
-    pass
+def input_fn(features: np.ndarray, labels: np.ndarray = None,
+             epochs: int = 1, shuffle: bool = None):
+    return tf.estimator.inputs.numpy_input_fn(
+        x={args.feature_col: features},
+        y=labels,
+        batch_size=args.batch_size,
+        num_epochs=epochs,
+        shuffle=shuffle,
+        num_threads=2
+    )
+
+
+def model_fn(features: tf.Tensor, labels: tf.Tensor, mode=tf.estimator.ModeKeys):
+    with tf.name_scope("model"):
+        # Network layers.
+        with tf.name_scope("layers"):
+            # Input Layer
+            with tf.name_scope("input"):
+                input_layer = tf.reshape(tensor=features[args.feature_col],
+                                         shape=(-1, args.img_size, args.img_size, args.img_depth),
+                                         name="reshape")
+
+            # 1st convolutional block.
+            with tf.name_scope("conv_block_1"):
+                conv1 = tf.layers.conv2d(inputs=input_layer,
+                                         filters=args.filter_conv1,
+                                         kernel_size=args.kernel_size,
+                                         activation=tf.nn.relu, padding="same")
+
+                pool1 = tf.layers.max_pooling2d(inputs=conv1,
+                                                pool_size=args.pool_size,
+                                                strides=2, name="pooling")
+
+            with tf.name_scope("conv_block_2"):
+                conv2 = tf.layers.conv2d(inputs=pool1,
+                                         filters=args.filter_conv2,
+                                         kernel_size=args.kernel_size,
+                                         activation=tf.nn.relu, padding="same")
+
+                pool2 = tf.layers.max_pooling2d(inputs=conv2,
+                                                pool_size=args.pool_size,
+                                                strides=2, name="pooling")
+
+            with tf.name_scope("fully_connected"):
+                flatten = tf.layers.flatten(inputs=pool2, name="flatten")
+
+                # Fully connected layer.
+                dense = tf.layers.dense(inputs=flatten, units=args.dense_units,
+                                        activation=tf.nn.relu, name="dense")
+
+                # Dropout for regularization (to prevent network from overfitting).
+                dropout = tf.layers.dropout(inputs=dense,
+                                            rate=args.dropout,
+                                            training=mode == tf.estimator.ModeKeys.TRAIN,
+                                            name="dropout")
+
+            with tf.name_scope("output"):
+                logits = tf.layers.dense(inputs=dropout, units=args.num_classes,
+                                         name="logits")
+
+        # Predictions.
+        with tf.name_scope("prediction"):
+            predictions = {
+                "classes": tf.argmax(input=logits, axis=1, name="classes"),
+                "probabilities": tf.nn.softmax(logits=logits, name="probabilities")
+            }
+
+        # Return predictions (if mode == PREDICT).
+        if mode == tf.estimator.ModeKeys.PREDICT:
+            return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions)
+
+        # Estimate the loss.
+        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits,
+                                               reduction=tf.losses.Reduction.MEAN)
+
+        # Train the model.
+        with tf.name_scope("train"):
+            optimizer = tf.train.RMSPropOptimizer(learning_rate=args.learning_rate,
+                                                  decay=args.decay_rate)
+            train_op = optimizer.minimize(loss=loss,
+                                          global_step=tf.train.get_or_create_global_step(),
+                                          name="train_op")
+
+        # Evaluate accuracy.
+        with tf.name_scope("evaluate"):
+            # Evaluation metrics operation.
+            eval_metrics_op = {
+                "accuracy": tf.metrics.accuracy(labels=labels,
+                                                predictions=predictions["probabilities"],
+                                                name="accuracy")
+            }
+
+    # Return training operation (if mode == TRAIN).
+    if mode == tf.estimator.ModeKeys.TRAIN:
+        return tf.estimator.EstimatorSpec(mode=mode, predictions=predictions,
+                                          loss=loss, train_op=train_op,
+                                          # Optional: Accuracy during training.
+                                          eval_metric_ops=eval_metrics_op)
+
+    # Return evaluation metrics (if mode == EVAL).
+    if mode == tf.estimator.ModeKeys.EVAL:
+        return tf.estimator.EstimatorSpec(mode=mode, loss=loss,
+                                          eval_metric_ops=eval_metrics_op)
 
 
 def main():
@@ -79,8 +183,22 @@ def main():
     X_train, y_train = train
     X_test, y_test = test
 
-    train_data = tf.data.Dataset.from_tensor_slices((X_train, X_test))
-    test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
+    log_tensors = {
+        "accuracy": "model/evaluate/accuracy/value:0"
+    }
+    hooks = tf.train.LoggingTensorHook(tensors=log_tensors,
+                                       every_n_iter=args.log_every,
+                                       at_end=True)
+
+    clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.save_dir)
+
+    # Train the model.
+    train_input_fn = input_fn(features=X_train, labels=y_train,
+                              epochs=args.epochs, shuffle=True)
+    clf.train(train_input_fn, hooks=[hooks])
+
+    eval_input_fn = input_fn(features=X_test, labels=y_test, epochs=1)
+    clf.evaluate(eval_input_fn, steps=args.steps)
 
 
 if __name__ == '__main__':
@@ -88,11 +206,11 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
 
     # Input arguments.
-    parser.add_argument('--img_size', type=int, default=28,
-                        help="Image size. The default for MNIST data is 28")
-    parser.add_argument('--img_depth', type=int, default=1,
-                        help="Image channel. The default for MNIST data is 1, "
-                             "which signifies image is a Monochrome image.")
+    parser.add_argument('--img_size', type=int, default=32,
+                        help="Image size. The default for CIFAR10 data is 32")
+    parser.add_argument('--img_depth', type=int, default=3,
+                        help="Image channel. The default for CIFAR10 data is 3, "
+                             "which signifies image is a colored image.")
     parser.add_argument('--num_classes', type=int, default=10,
                         help="Number of classes to be predicted.")
 
