@@ -194,15 +194,17 @@ def main():
                                        at_end=True)
 
     clf = tf.estimator.Estimator(model_fn=model_fn, model_dir=args.save_dir)
-
     # Train the model.
-    train_input_fn = input_fn(features=X_train, labels=y_train,
-                              epochs=args.epochs, shuffle=True)
-    clf.train(train_input_fn, hooks=[hooks])
+    # train_input_fn = input_fn(features=X_train, labels=y_train,
+    #                           epochs=args.epochs, shuffle=True)
+    # clf.train(train_input_fn, hooks=[hooks], max_steps=args.steps)
 
+    # Evaluate the model.
     eval_input_fn = input_fn(features=X_test, labels=y_test, epochs=1)
-    eval_results = clf.evaluate(eval_input_fn, steps=args.steps)
-    print(eval_results)
+    results = clf.evaluate(input_fn=eval_input_fn)
+
+    print('Global steps = {:,}\tAccuracy = {:.02%}\tLoss = {:.4f}'
+          .format(results['global_step'], results['accuracy'], results['loss']))
 
 
 if __name__ == '__main__':
@@ -219,10 +221,11 @@ if __name__ == '__main__':
                         help="Number of classes to be predicted.")
 
     # Dataset arguments.
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size', type=int, default=32,
                         help="Mini batch size. Use lower batch size if running on CPU.")
     parser.add_argument('--shuffle_rate', type=int, default=1000,
-                        help="Dataset shuffle rate.")
+                        help="Dataset shuffle rate. A fixed size buffer from which the "
+                             "next element will be uniformly chosen from.")
     parser.add_argument('--data_transform_count', type=int, default=5,
                         help="Dataset transform repeat count. "
                              "Use smaller (or 1) if running on CPU")

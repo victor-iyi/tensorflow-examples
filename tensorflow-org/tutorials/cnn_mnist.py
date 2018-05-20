@@ -297,15 +297,17 @@ def main():
     # Train the model.
     train_input_fn = input_fn(features=X_train, labels=y_train,
                               epochs=args.epochs, shuffle=True)
-    clf.train(input_fn=train_input_fn,
-              hooks=[logging_hook],
-              steps=args.steps)
+    clf.train(input_fn=train_input_fn, hooks=[logging_hook],
+              max_steps=args.steps)
 
     # Evaluate the model.
     eval_input_fn = input_fn(features=X_test, labels=y_test,
                              epochs=1, shuffle=False)
-    eval_results = clf.evaluate(input_fn=eval_input_fn)
-    print(eval_results)
+    results = clf.evaluate(input_fn=eval_input_fn)
+
+    print('Global steps = {:,}\tAccuracy = {:.02%}\tLoss = {:.4f}'
+          .format(results['global_step'], results['accuracy'], results['loss']))
+
 
 
 if __name__ == '__main__':
