@@ -90,7 +90,7 @@ del sequence, generator, dataset, iterator, seq, sess
 # | How to create `Iterator` (to retrieve the real values in Dataset).
 # +------------------------------------------------------------------+
 ######################################################################
-# METHOD 1: One shot Iterator,
+# METHOD 1: One shot Iterator (basic).
 print('\nUsing one shot iterator.')
 x = np.random.sample(size=(100, 2))
 dataset = tf.data.Dataset.from_tensor_slices(x)
@@ -106,24 +106,29 @@ with tf.Session() as sess:
 del x, dataset, iterator, elements, sess
 
 # METHOD 2: Initializable Iterator.
-print('\nUsing a placeholder.')
+print('\nUsing a placeholder with initializable iterator.')
 x = tf.placeholder(dtype=tf.float32, shape=[None, 2])
-dataset = tf.data.Dataset.from_tensor_slices(x)
+y = tf.placeholder(dtype=tf.int32, shape=[None, 1])
+
+dataset = tf.data.Dataset.from_tensor_slices((x, y))
 
 # Real numpy data (we'll pass it through `feed_dict`).
-data = np.random.sample(size=(100, 2))
+data_x = np.random.sample(size=(20, 2))
+data_y = np.random.sample(size=(20, 1))
 
 # Make initializable Iterator.
 iterator = dataset.make_initializable_iterator()
-elements = iterator.get_next()
+features, labels = iterator.get_next()
 
 with tf.Session() as sess:
-    sess.run(iterator.initializer, feed_dict={x: data})
-    print('elements = {}'.format(sess.run(elements)))
-    print('elements = {}'.format(sess.run(elements)))
+    sess.run(iterator.initializer, feed_dict={x: data_x, y: data_y})
+    for _ in range(5):
+        _features, _labels = sess.run([features, labels])
+        print('features = {}\tlabels = {}'.format(_features, _labels))
+        print('features = {}\tlabels = {}'.format(_features, _labels))
 
 # Clean variables from memory.
-del x, dataset, data, iterator, elements, sess
+del x, dataset, data_x, data_y, iterator, features, labels, sess
 
 ######################################################################
 # +------------------------------------------------------------------+
@@ -169,7 +174,7 @@ del X_plhd, y_plhd, epochs, sess, _features, _labels
 
 ################################################################################################
 # +———————————————————————————————————————————————————————————————————————————————————————————+
-# | Re-initializable dataset.
+# | Re-initializable dataset: Best for Both "training" & "testing/evaluation".
 # +———————————————————————————————————————————————————————————————————————————————————————————+
 ################################################################################################
 print('\nRe-initializable dataset example')
@@ -185,10 +190,12 @@ y_test = np.random.sample(size=(10, 1))
 train_data = tf.data.Dataset.from_tensor_slices((X_train, y_train))
 test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 
+# One Generic iterator for both training & testing.
 iterator = tf.data.Iterator.from_structure(output_types=train_data.output_types,
                                            output_shapes=train_data.output_shapes)
 features, labels = iterator.get_next()
 
+# Using the Generic Iterator, we can initialize train & test with different dataset.
 train_init = iterator.make_initializer(dataset=train_data, name="train_dataset")
 test_init = iterator.make_initializer(dataset=test_data, name="test_dataset")
 
