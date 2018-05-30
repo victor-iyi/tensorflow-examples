@@ -15,7 +15,21 @@ def make_one_hot(indices, depth, dtype=np.int32):
     return hot
 
 
-def load_data(one_hot=False):
+def make_dataset(features, labels=None, shuffle=False):
+    if labels is not None:
+        dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    else:
+        dataset = tf.data.Dataset.from_tensor_slices(features)
+
+    # Transform dataset.
+    dataset = dataset.batch(batch_size=args.batch_size)
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size=args.buffer_size)
+
+    return dataset
+
+
+def load_data(one_hot=False, dataset=True):
     train, test = tf.keras.datasets.mnist.load_data()
 
     X_train, y_train = train
@@ -29,21 +43,13 @@ def load_data(one_hot=False):
         y_train = make_one_hot(y_train, depth=args.num_classes)
         y_test = make_one_hot(y_test, depth=args.num_classes)
 
-    return (X_train, y_train), (X_test, y_test)
+    if dataset is False:
+        return (X_train, y_train), (X_test, y_test)
 
+    train_data = make_dataset(X_train, y_train, shuffle=True)
+    test_data = make_dataset(X_test, y_test, shuffle=False)
 
-def make_dataset(features, labels=None, shuffle=False):
-    if labels is not None:
-        dataset = tf.data.Dataset.from_tensor_slices((features, labels))
-    else:
-        dataset = tf.data.Dataset.from_tensor_slices(features)
-
-    # Transform dataset.
-    dataset = dataset.batch(batch_size=args.batch_size)
-    if shuffle:
-        dataset = dataset.shuffle(buffer_size=args.buffer_size)
-
-    return dataset
+    return train_data, test_data
 
 
 def variable_summaries(var):
@@ -59,24 +65,24 @@ def variable_summaries(var):
 
 
 def main():
-    train, test = load_data(one_hot=args.one_hot)
-    X_train, y_train = train
-    X_test, y_test = test
+    # Load MNIST dataset as a tf.data.Dataset object.
+    train, test = load_data(one_hot=args.one_hot, dataset=True)
 
-    train_data = make_dataset(X_train, y_train, shuffle=True)
-    test_data = make_dataset(X_test, y_test, shuffle=False)
+    # Create a generic iterator for train & test sets.
+    iterator = tf.data.Iterator.from_structure(output_types=train.output_types,
+                                               output_shapes=train.output_shapes,
+                                               output_classes=train.output_classes)
 
-    iterator = tf.data.Iterator.from_structure(output_types=train_data.output_types,
-                                               output_shapes=train_data.output_shapes,
-                                               output_classes=train_data.output_classes)
-
-    # Shape: (batch_size, time_steps, element_size), Shape: (batch_size, num_classes)
+    # Feature Shape: (batch_size, time_steps, element_size)
+    # Labels  Shape: (batch_size, num_classes)
     features, labels = iterator.get_next()
 
-    # train_iter = iterator.make_initializer(train_data, name='train_data')
-    # test_iter = iterator.make_initializer(test_data, name='test_data')
+    # Initializes iterator for each train & test dataset.
+    # train_iter = iterator.make_initializer(train, name='train_dataset')
+    # test_iter = iterator.make_initializer(test, name='test_dataset')
 
-    # Weights & bias for input & hidden layers
+    # Recurrent Network weights & biases.
+    # Network weights.
     with tf.name_scope('weights'):
         # Input weights.
         with tf.name_scope('W_x'):
@@ -84,19 +90,36 @@ def main():
                                  shape=(args.element_size, args.hidden_size),
                                  initializer=tf.zeros_initializer())
             variable_summaries(Wx)
-        # Recurrent hidden staet weights.
+
+        # Recurrent hidden state weights.
         with tf.name_scope('W_h'):
             Wh = tf.get_variable(name='W_h',
                                  shape=(args.hidden_size, args.hidden_size),
                                  initializer=tf.zeros_initializer())
             variable_summaries(Wh)
 
-    # Bias.
-    with tf.name_scope('bias'):
-        bias = tf.get_variable(name='bias',
-                               shape=(args.hidden_size),
-                               initializer=tf.zeros_initializer())
-        variable_summaries(bias)
+        # Output layer weights.
+        with tf.name_scope('W_o'):
+            Wo = tf.get_variable(name='W_o',
+                                 shape=(args.hidden_size, args.num_classes),
+                                 initializer=tf.zeros_initializer())
+            variable_summaries(Wo)
+
+    # Network biases.
+    with tf.name_scope('biases'):
+        # Hidden state bias.
+        with tf.name_scope('b_h'):
+            bh = tf.get_variable(name='b_h',
+                                 shape=(args.hidden_size),
+                                 initializer=tf.zeros_initializer())
+            variable_summaries(bh)
+
+        # Output state bias.
+        with tf.name_scope('b_o'):
+            bo = tf.get_variable(name='b_o',
+                                 shape=(args.num_classes),
+                                 initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
+            variable_summaries(bo)
 
     def rnn_step(prev: tf.Tensor, curr: tf.Tensor):
         """Recurrent Neural Net operation at each time step.
@@ -125,8 +148,12 @@ def main():
     hidden_states = tf.scan(rnn_step, input_trans,
                             initializer=init_hidden,
                             name='hidden_states')
-    print(hidden_states)
 
+    def get_outputs(hidden_state):
+        return tf.matmul(hidden_state, Wo) + bo
+
+    with tf.name_scope('rnn_ouputs'):
+        pass
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
