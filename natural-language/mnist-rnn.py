@@ -114,29 +114,34 @@ class RNN:
             self.Wx = tf.get_variable(name="input",
                                       shape=(self.args.time_steps, self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
+            self.variable_summaries(self.Wx)
 
             self.Wh = tf.get_variable(name="hidden",
                                       shape=(self.args.hidden_size, self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
+            self.variable_summaries(self.Wh)
 
             self.Wo = tf.get_variable(name="output",
                                       shape=(self.args.hidden_size, self.args.num_classes),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
+            self.variable_summaries(self.Wo)
 
         # Initialize models bias.
         with tf.name_scope("biases"):
             self.bh = tf.get_variable(name="hidden",
                                       shape=[self.args.hidden_size],
                                       initializer=tf.zeros_initializer())
+            self.variable_summaries(self.bh)
 
             self.bo = tf.get_variable(name="output",
                                       shape=[self.args.num_classes],
                                       initializer=tf.zeros_initializer())
+            self.variable_summaries(self.bo)
 
-    def __call__(self, inputs, **kwargs):
-        return self.predict(inputs, **kwargs)
+    def __call__(self, inputs: tf.Tensor):
+        return self.predict(inputs)
 
-    def predict(self, inputs, **kwargs):
+    def predict(self, inputs: tf.Tensor):
         # Reshape inputs.
         with tf.name_scope('inputs'):
             inputs = tf.transpose(inputs, perm=[1, 0, 2], name="reshape")
@@ -184,7 +189,28 @@ class RNN:
             correct = tf.equal(y_pred, y_true)
             accuracy = tf.reduce_mean(tf.cast(correct, tf.float32), name="accuracy")
 
+            tf.summary.scalar('accuracy', accuracy)
+
         return accuracy
+
+    @staticmethod
+    def variable_summaries(var: tf.Tensor):
+        with tf.name_scope('summaries'):
+            # Mean value.
+            mean = tf.reduce_mean(var)
+            tf.summary.scalar('mean', mean)
+
+            # Standard deviation.
+            with tf.name_scope('stddev'):
+                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
+            tf.summary.scalar('stddev', stddev)
+
+            # Min & Max values.
+            tf.summary.scalar('min', tf.reduce_min(var))
+            tf.summary.scalar('max', tf.reduce_max(var))
+
+            # Distribution.
+            tf.summary.histogram('histogram', var)
 
     def _loop(self, prev: tf.Tensor, curr: tf.Tensor):
         hidden = tf.matmul(curr, self.Wx) + tf.matmul(prev, self.Wh) + self.bh
@@ -192,6 +218,10 @@ class RNN:
 
     def _output(self, hidden: tf.Tensor):
         return tf.matmul(hidden, self.Wo) + self.bo
+
+    @property
+    def parameters(self):
+        return [self.Wx, self.Wh, self.Wo, self.bh, self.bo]
 
 
 def main():
@@ -205,7 +235,7 @@ def main():
 
     # Train & test iterator object.
     train_iter = iterator.make_initializer(train, name="train_dataset")
-    test_iter = iterator.make_initializer(test, name="test_dataset")
+    # test_iter = iterator.make_initializer(test, name="test_dataset")
 
     with tf.Session() as sess:
         model = RNN(args=args)
@@ -234,6 +264,9 @@ def main():
         for epoch in range(args.epochs):
             try:
                 model.train(features, labels)
+                accuracy = model.eval(features, labels)
+                tf.summary.scalar('accuracy', accuracy)
+
                 _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
                                                      model.loss, model.summary])
                 writer.add_summary(summary=summary, global_step=_step)
