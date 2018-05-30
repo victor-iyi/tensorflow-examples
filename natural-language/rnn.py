@@ -3,10 +3,23 @@ import argparse
 import numpy as np
 import tensorflow as tf
 
+# Command line arguments.
 args = None
 
 
-def make_one_hot(indices, depth, dtype=np.int32):
+def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
+    """Convert a list of numbered indices to corresponding one-hot vectors.
+
+    Arguments:
+        indices {np.ndarray} -- Numbered indices of `on` signal.
+        depth {int} -- Length of each encoded vector.
+
+    Keyword Arguments:
+        dtype {np.dtype} -- Data type. (default: {np.int32})
+
+    Returns:
+        np.ndarray -- One-hot vector.
+    """
     hot = np.zeros(shape=[len(indices), depth], dtype=dtype)
 
     for i, index in enumerate(indices):
@@ -15,7 +28,20 @@ def make_one_hot(indices, depth, dtype=np.int32):
     return hot
 
 
-def make_dataset(features, labels=None, shuffle=False):
+def make_dataset(features: np.ndarray, labels: np.ndarray = None, shuffle: bool = False):
+    """Converts features and labels into a tf.data.Dataset object.
+
+    Arguments:
+        features {np.ndarray} -- NumPy Array containing features.
+
+    Keyword Arguments:
+        labels {np.ndarray} -- NumPy array containing  labels. (default: {None})
+        shuffle {bool} -- Shuffle the dataset? (default: {False})
+
+    Returns:
+        tf.data.Dataset -- Dataset object.
+    """
+
     if labels is not None:
         dataset = tf.data.Dataset.from_tensor_slices((features, labels))
     else:
@@ -30,6 +56,15 @@ def make_dataset(features, labels=None, shuffle=False):
 
 
 def load_data(one_hot=False, dataset=True):
+    """Load MNIST dataset into an optional tf.data.Dataset object.
+
+    Keyword Arguments:
+        one_hot {bool} -- Should one-hot encode labels. (default: {False})
+        dataset {bool} -- Should return tf.data.Dataset object. (default: {True})
+
+    Returns:
+        tuple -- Train and test dataset splits.
+    """
     train, test = tf.keras.datasets.mnist.load_data()
 
     X_train, y_train = train
@@ -52,7 +87,7 @@ def load_data(one_hot=False, dataset=True):
     return train_data, test_data
 
 
-def variable_summaries(var):
+def variable_summaries(var: tf.Tensor):
     with tf.name_scope('summaries'):
         mean = tf.reduce_mean(var)
         tf.summary.scalar('mean', mean)
@@ -78,8 +113,8 @@ def main():
     features, labels = iterator.get_next()
 
     # Initializes iterator for each train & test dataset.
-    # train_iter = iterator.make_initializer(train, name='train_dataset')
-    # test_iter = iterator.make_initializer(test, name='test_dataset')
+    train_iter = iterator.make_initializer(train, name='train_dataset')
+    test_iter = iterator.make_initializer(test, name='test_dataset')
 
     # Recurrent Network weights & biases.
     # Network weights.
@@ -110,14 +145,14 @@ def main():
         # Hidden state bias.
         with tf.name_scope('b_h'):
             bh = tf.get_variable(name='b_h',
-                                 shape=(args.hidden_size),
+                                 shape=[args.hidden_size],
                                  initializer=tf.zeros_initializer())
             variable_summaries(bh)
 
         # Output state bias.
         with tf.name_scope('b_o'):
             bo = tf.get_variable(name='b_o',
-                                 shape=(args.num_classes),
+                                 shape=[args.num_classes],
                                  initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             variable_summaries(bo)
 
@@ -133,7 +168,7 @@ def main():
         Returns:
             tf.Tensor -- Current hidden state.
         """
-        hidden = tf.matmul(curr, Wx) + tf.matmul(prev, Wh) + bias
+        hidden = tf.matmul(curr, Wx) + tf.matmul(prev, Wh) + bh
         hidden = tf.tanh(hidden)
         return hidden
 
@@ -149,11 +184,67 @@ def main():
                             initializer=init_hidden,
                             name='hidden_states')
 
-    def get_outputs(hidden_state):
+    def get_outputs(hidden_state: tf.Tensor):
+        """Apply vanilla linear function with no activation.
+
+        Arguments:
+            hidden_state (tf.Tensor): Hidden layer.
+
+        Returns:
+            tf.Tensor -- Output logits.
+        """
         return tf.matmul(hidden_state, Wo) + bo
 
-    with tf.name_scope('rnn_ouputs'):
-        pass
+    with tf.name_scope('rnn_outputs'):
+        rnn_outputs = tf.map_fn(get_outputs, hidden_states)
+        logits = rnn_outputs[-1]
+        outputs = tf.nn.softmax(logits)
+
+    with tf.name_scope('loss'):
+        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits,
+                                               reduction=tf.losses.Reduction.MEAN)
+
+    with tf.name_scope('train'):
+        optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
+        global_step = tf.train.get_or_create_global_step()
+        train_op = optimizer.minimize(
+            loss, global_step=global_step, name='train_op')
+
+    with tf.name_scope('accuracy'):
+        y_pred = tf.argmax(outputs, axis=1)
+        y_true = tf.argmax(labels, axis=1)
+        correct = tf.equal(y_pred, y_true, name='correct')
+        accuracy = tf.reduce_mean(tf.cast(correct, tf.int32),
+                                  name="accuracy")
+
+    # Merge all Tensorboard summaries.
+    merged = tf.summary.merge_all()
+
+    with tf.Session() as sess:
+        init = tf.global_variables_initializer()
+        sess.run(init)
+
+        # Reset iterator initializer.
+        sess.run(train_iter)
+
+        # Each training epochs.
+        for epoch in range(args.epochs):
+            try:
+                _, _step, _loss, _acc = sess.run([train_op, global_step, loss, accuracy])
+                print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                      .format(epoch + 1, _step, _acc, _loss), end='')
+
+                # Save model.
+                if epoch % args.save_every == 0:
+                    print('\nSave model to {}'.format(args.save_dir))
+
+                # Log training to tensorboard.
+                if epoch % args.log_every == 0:
+                    print('\nAdd summaries for Tensorboard.')
+            except KeyboardInterrupt:
+                print('\nTraining interrupted by user!')
+                break
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -171,8 +262,8 @@ if __name__ == '__main__':
     # Network/Model arguments.
     parser.add_argument('--hidden_size', type=int, default=128,
                         help='Hidden layer size.')
-    parser.add_argument('--dropuot', type=float, default=0.5,
-                        help='Droupout Rate.')
+    parser.add_argument('--dropout', type=float, default=0.5,
+                        help='Dropout Rate.')
 
     # Data transformation arguments.
     parser.add_argument('--batch_size', type=int, default=128,
@@ -180,11 +271,21 @@ if __name__ == '__main__':
     parser.add_argument('--buffer_size', type=int, default=1000,
                         help='Shuffle rate.')
 
+    # Training arguments.
+    parser.add_argument('--learning_rate', type=float, default=1e-2,
+                        help='Optimizer\'s learning rate.')
+    parser.add_argument('--epochs', type=int, default=1000,
+                        help='Number of training iteration/epochs.')
+    parser.add_argument('--save_dir', type=str, default='./saved/rnn/model',
+                        help='Model save directory.')
+    parser.add_argument('--save_every', type=int, default=200,
+                        help='Save model every number of steps.')
+
     # Tensorboard arguments.
     parser.add_argument('--logdir', type=str, default='./logs/rnn/logs',
                         help='Tensorboard log directory.')
-    parser.add_argument('--save_dir', type=str, default='./saved/rnn/model',
-                        help='Model save directory.')
+    parser.add_argument('--log_every', type=int, default=400,
+                        help='Log for tensorboard every number of steps.')
 
     args = parser.parse_args()
 
