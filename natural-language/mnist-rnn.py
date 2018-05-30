@@ -111,32 +111,35 @@ class RNN:
 
         # Initialize model's weights.
         with tf.name_scope("weights"):
-            self.Wx = tf.get_variable(name="input",
+            self.Wx = tf.get_variable(name="Wx",
                                       shape=(self.args.time_steps, self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wx)
 
-            self.Wh = tf.get_variable(name="hidden",
+            self.Wh = tf.get_variable(name="Wh",
                                       shape=(self.args.hidden_size, self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wh)
 
-            self.Wo = tf.get_variable(name="output",
+            self.Wo = tf.get_variable(name="Wo",
                                       shape=(self.args.hidden_size, self.args.num_classes),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wo)
 
         # Initialize models bias.
         with tf.name_scope("biases"):
-            self.bh = tf.get_variable(name="hidden",
+            self.bh = tf.get_variable(name="bh",
                                       shape=[self.args.hidden_size],
                                       initializer=tf.zeros_initializer())
             self.variable_summaries(self.bh)
 
-            self.bo = tf.get_variable(name="output",
+            self.bo = tf.get_variable(name="bo",
                                       shape=[self.args.num_classes],
                                       initializer=tf.zeros_initializer())
             self.variable_summaries(self.bo)
+
+        self.global_step = tf.train.get_global_step()
+        # self.summary = tf.summary.merge_all()
 
     def __call__(self, inputs: tf.Tensor):
         return self.predict(inputs)
@@ -172,13 +175,12 @@ class RNN:
 
         with tf.name_scope('optimizer'):
             self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.args.learning_rate)
-            self.global_step = tf.train.get_or_create_global_step()
             self.train_op = self.optimizer.minimize(loss=self.loss,
                                                     global_step=self.global_step,
                                                     name="train_op")
 
         # Merge all summaries.
-        self.summary = tf.summary.merge_all()
+        # self.summary = tf.summary.merge_all()
 
     def eval(self, features: tf.Tensor, labels: tf.Tensor):
         pred = self.predict(features)
@@ -243,6 +245,7 @@ def main():
 
         saver = tf.train.Saver()
         writer = tf.summary.FileWriter(logdir=args.logdir, graph=sess.graph)
+        merge = tf.summary.merge_all()
 
         # Restore Training session properly.
         if tf.gfile.Exists(args.save_dir):
@@ -259,16 +262,15 @@ def main():
             sess.run(init)
 
         # Train dataset initializer.
-        sess.run(train_iter.initializer)
+        sess.run(train_iter)
 
         for epoch in range(args.epochs):
             try:
                 model.train(features, labels)
-                accuracy = model.eval(features, labels)
-                tf.summary.scalar('accuracy', accuracy)
+                acc = model.eval(features, labels)
 
                 _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
-                                                     model.loss, model.summary])
+                                                     model.loss, merge])
                 writer.add_summary(summary=summary, global_step=_step)
 
                 if args.save_every % _step == 0:
@@ -276,8 +278,8 @@ def main():
                     saver.save(sess=sess, save_path=args.save_dir,
                                global_step=model.global_step)
 
-                print('Epoch: {:,}\tStep: {:,}\tLoss: {:.3f}'
-                      .format(epoch + 1, _step, _loss))
+                print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                      .format(epoch + 1, _step, acc, _loss))
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
                 print('Saving checkpoint to {}'.format(args.save_dir))
