@@ -114,7 +114,7 @@ def main():
 
     # Initializes iterator for each train & test dataset.
     train_iter = iterator.make_initializer(train, name='train_dataset')
-    test_iter = iterator.make_initializer(test, name='test_dataset')
+    # test_iter = iterator.make_initializer(test, name='test_dataset')
 
     # Recurrent Network weights & biases.
     # Network weights.
@@ -221,8 +221,26 @@ def main():
     merged = tf.summary.merge_all()
 
     with tf.Session() as sess:
+        # Saver & Summary writer.
+        saver = tf.train.Saver()
+        writer = tf.summary.FileWriter(logdir=args.logdir, graph=sess.graph)
+
         init = tf.global_variables_initializer()
-        sess.run(init)
+
+        # Restore last checkpoint if it exists.
+        if tf.gfile.Exists(args.save_dir):
+            try:
+                ckpt_path = tf.train.latest_checkpoint(args.save_dir)
+                saver.restore(sess, save_path=ckpt_path)
+                print('INFO: Restored checkpoint from {}'.format(ckpt_path))
+            except Exception as e:
+                print('WARN: Could not load checkpoint. {}'.format(e))
+                sess.run(init)
+        else:
+            tf.gfile.MakeDirs(args.save_dir)
+            print('INFO: No checkpoints found. Creating checkpoint @ {}'
+                  .format(args.save_dir))
+            sess.run(init)
 
         # Reset iterator initializer.
         sess.run(train_iter)
@@ -230,19 +248,30 @@ def main():
         # Each training epochs.
         for epoch in range(args.epochs):
             try:
-                _, _step, _loss, _acc = sess.run([train_op, global_step, loss, accuracy])
+                # Train the network.
+                _, _step, _loss, _acc, summary = sess.run([train_op, global_step,
+                                                           loss, accuracy, merged])
+                # Log training to tensorboard.
+                writer.add_summary(summary=summary, global_step=_step)
+
                 print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
                       .format(epoch + 1, _step, _acc, _loss), end='')
 
                 # Save model.
                 if epoch % args.save_every == 0:
-                    print('\nSave model to {}'.format(args.save_dir))
+                    print('\nSaving model to {}'.format(args.save_dir))
+                    saver.save(sess=sess, save_path=args.save_dir,
+                               global_step=global_step)
 
-                # Log training to tensorboard.
-                if epoch % args.log_every == 0:
-                    print('\nAdd summaries for Tensorboard.')
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
+
+                # Save learned model.
+                print('Saving model to {}'.format(args.save_dir))
+                saver.save(sess=sess, save_path=args.save_dir,
+                           global_step=global_step)
+
+                # End training.
                 break
 
 
@@ -266,7 +295,7 @@ if __name__ == '__main__':
                         help='Dropout Rate.')
 
     # Data transformation arguments.
-    parser.add_argument('--batch_size', type=int, default=128,
+    parser.add_argument('--batch_size', type=int, default=100,
                         help='Mini batch size.')
     parser.add_argument('--buffer_size', type=int, default=1000,
                         help='Shuffle rate.')
@@ -276,13 +305,13 @@ if __name__ == '__main__':
                         help='Optimizer\'s learning rate.')
     parser.add_argument('--epochs', type=int, default=1000,
                         help='Number of training iteration/epochs.')
-    parser.add_argument('--save_dir', type=str, default='./saved/rnn/model',
+    parser.add_argument('--save_dir', type=str, default='../saved/rnn/model',
                         help='Model save directory.')
     parser.add_argument('--save_every', type=int, default=200,
                         help='Save model every number of steps.')
 
     # Tensorboard arguments.
-    parser.add_argument('--logdir', type=str, default='./logs/rnn/logs',
+    parser.add_argument('--logdir', type=str, default='../logs/rnn/logs',
                         help='Tensorboard log directory.')
     parser.add_argument('--log_every', type=int, default=400,
                         help='Log for tensorboard every number of steps.')
