@@ -207,15 +207,17 @@ def main():
     with tf.name_scope('train'):
         optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
         global_step = tf.train.get_or_create_global_step()
-        train_op = optimizer.minimize(
-            loss, global_step=global_step, name='train_op')
+        train_op = optimizer.minimize(loss, global_step=global_step,
+                                      name='train_op')
 
     with tf.name_scope('accuracy'):
         y_pred = tf.argmax(outputs, axis=1)
         y_true = tf.argmax(labels, axis=1)
+        # Correct predictions.
         correct = tf.equal(y_pred, y_true, name='correct')
-        accuracy = tf.reduce_mean(tf.cast(correct, tf.int32),
-                                  name="accuracy")
+        # Accuracy.
+        accuracy = tf.reduce_mean(tf.cast(correct, tf.int32), name='accuracy')
+        tf.summary.scalar('accuracy', accuracy)
 
     # Merge all Tensorboard summaries.
     merged = tf.summary.merge_all()
