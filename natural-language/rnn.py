@@ -1,3 +1,20 @@
+"""Recurrent Neural Network Architecture Simple Implementation.
+
+   @author
+     Victor I. Afolabi
+     Artificial Intelligence & Software Engineer.
+     Email: javafolabi@gmail.com
+     GitHub: https://github.com/victor-iyiola
+
+   @project
+     File: rnn.py
+     Created on 30 May, 2018 @ 8:20 PM.
+
+   @license
+     MIT License
+     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
+"""
+
 import argparse
 
 import numpy as np
