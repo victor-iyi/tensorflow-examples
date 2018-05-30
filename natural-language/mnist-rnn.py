@@ -156,7 +156,7 @@ class RNN:
 
         return predictions
 
-    def train(self, features, labels):
+    def train(self, features: tf.Tensor, labels: tf.Tensor):
         pred = self.predict(features)
         logits = pred['logits']
 
@@ -172,6 +172,9 @@ class RNN:
                                                     global_step=self.global_step,
                                                     name="train_op")
 
+        # Merge all summaries.
+        self.summary = tf.summary.merge_all()
+
     def eval(self, features: tf.Tensor, labels: tf.Tensor):
         pred = self.predict(features)
         y_pred = tf.argmax(pred['probability'], axis=1)
@@ -183,11 +186,11 @@ class RNN:
 
         return accuracy
 
-    def _loop(self, prev, curr):
+    def _loop(self, prev: tf.Tensor, curr: tf.Tensor):
         hidden = tf.matmul(curr, self.Wx) + tf.matmul(prev, self.Wh) + self.bh
         return tf.tanh(hidden)
 
-    def _output(self, hidden):
+    def _output(self, hidden: tf.Tensor):
         return tf.matmul(hidden, self.Wo) + self.bo
 
 
@@ -209,6 +212,9 @@ def main():
         init = tf.global_variables_initializer()
 
         saver = tf.train.Saver()
+        writer = tf.summary.FileWriter(logdir=args.logdir, graph=sess.graph)
+
+        # Restore Training session properly.
         if tf.gfile.Exists(args.save_dir):
             try:
                 ckpt_path = tf.train.latest_checkpoint(args.save_dir)
@@ -221,6 +227,31 @@ def main():
             tf.gfile.MakeDirs(args.save_dir)
             print('INFO: Created checkpoint directory: {}'.format(args.save_dir))
             sess.run(init)
+
+        # Train dataset initializer.
+        sess.run(train_iter.initializer)
+
+        for epoch in range(args.epochs):
+            try:
+                model.train(features, labels)
+                _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
+                                                     model.loss, model.summary])
+                writer.add_summary(summary=summary, global_step=_step)
+
+                if args.save_every % _step == 0:
+                    print('\nSaving checkpoint to {}'.format(args.save_dir))
+                    saver.save(sess=sess, save_path=args.save_dir,
+                               global_step=model.global_step)
+
+                print('Epoch: {:,}\tStep: {:,}\tLoss: {:.3f}'
+                      .format(epoch + 1, _step, _loss))
+            except KeyboardInterrupt:
+                print('\nTraining interrupted by user!')
+                print('Saving checkpoint to {}'.format(args.save_dir))
+                saver.save(sess=sess, save_path=args.save_dir,
+                           global_step=model.global_step)
+                # End training.
+                break
 
 
 if __name__ == '__main__':
