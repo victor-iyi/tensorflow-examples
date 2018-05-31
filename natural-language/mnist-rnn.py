@@ -266,20 +266,25 @@ def main():
 
         for epoch in range(args.epochs):
             try:
-                model.train(features, labels)
-                acc = model.eval(features, labels)
+                try:
+                    while True:
+                        model.train(features, labels)
+                        acc = model.eval(features, labels)
 
-                _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
-                                                     model.loss, merge])
-                writer.add_summary(summary=summary, global_step=_step)
+                        _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
+                                                            model.loss, merge])
+                        writer.add_summary(summary=summary, global_step=_step)
 
-                if args.save_every % _step == 0:
-                    print('\nSaving checkpoint to {}'.format(args.save_dir))
-                    saver.save(sess=sess, save_path=args.save_dir,
-                               global_step=model.global_step)
+                        if args.save_every % _step == 0:
+                            print('\nSaving checkpoint to {}'.format(args.save_dir))
+                            saver.save(sess=sess, save_path=args.save_dir,
+                                    global_step=model.global_step)
 
-                print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
-                      .format(epoch + 1, _step, acc, _loss))
+                        print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                            .format(epoch + 1, _step, acc, _loss))
+                except tf.errors.OutOfRangeError:
+                    print('\nEnd batch!')
+                    break
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
                 print('Saving checkpoint to {}'.format(args.save_dir))
@@ -317,11 +322,11 @@ if __name__ == '__main__':
     # Training arguments.
     parser.add_argument('--learning_rate', type=float, default=1e-2,
                         help='Optimizer\'s learning rate.')
-    parser.add_argument('--epochs', type=int, default=1000,
+    parser.add_argument('--epochs', type=int, default=10,
                         help='Number of training iteration/epochs.')
     parser.add_argument('--save_dir', type=str, default='../saved/mnist-rnn/model',
                         help='Model save directory.')
-    parser.add_argument('--save_every', type=int, default=200,
+    parser.add_argument('--save_every', type=int, default=1000,
                         help='Save model every number of steps.')
 
     # Tensorboard arguments.
