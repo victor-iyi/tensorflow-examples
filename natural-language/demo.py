@@ -1,10 +1,10 @@
-
 import argparse
 import os
 
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.data import batch_and_drop_remainder
+
 # Command line arguments.
 args = None
 
@@ -63,35 +63,8 @@ def main():
                                                output_shapes=train.output_shapes,
                                                output_classes=train.output_classes)
     features, labels = iterator.get_next()
-    rnn_cell = tf.nn.rnn_cell.BasicLSTMCell(num_units=args.hidden_size)
 
-    with tf.name_scope('weights'):
-        Wx = tf.get_variable(name='Wx',
-                             shape=(args.element_size, args.hidden_size),
-                             initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
-        tf.summary.histogram('Wx', Wx)
-
-        Wh = tf.get_variable(name='Wh',
-                             shape=(args.hidden_size, args.hidden_size),
-                             initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
-        tf.summary.histogram('Wh', Wh)
-
-        Wo = tf.get_variable(name='Wo',
-                             shape=(args.hidden_size, args.num_classes),
-                             initializer=tf.truncated_normal_initializer())
-        tf.summary.histogram('Wo', Wo)
-
-    with tf.name_scope('biases'):
-        bh = tf.get_variable(name='bh',
-                             shape=[args.hidden_size],
-                             initializer=tf.zeros_initializer())
-        tf.summary.histogram('bh', bh)
-
-        bo = tf.get_variable(name='bo',
-                             shape=[args.num_classes],
-                             initializer=tf.zeros_initializer())
-        tf.summary.histogram('bo', bo)
-
+    # RNN Cell
     cell = tf.nn.rnn_cell.BasicRNNCell(num_units=args.hidden_size)
     initial_state = cell.zero_state(batch_size=args.batch_size,
                                     dtype=tf.float32)
@@ -99,7 +72,10 @@ def main():
     outputs, states = tf.nn.dynamic_rnn(cell=cell, inputs=features,
                                         initial_state=initial_state,
                                         dtype=tf.float32)
+    # Output at last time step.
     rnn_output = outputs[:, -1]
+
+    # Fully connected layer.
     logits = tf.layers.dense(inputs=rnn_output, units=args.num_classes,
                              name="logits")
     y_pred = tf.nn.softmax(logits, name="probabilities")
@@ -152,7 +128,7 @@ def main():
 
         # Train & test dataset iterator.
         train_iter = iterator.make_initializer(train, name="train_iter")
-        test_iter = iterator.make_initializer(test, name="test_iter")
+        # test_iter = iterator.make_initializer(test, name="test_iter")
 
         for epoch in range(args.epochs):
             try:

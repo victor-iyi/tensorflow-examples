@@ -187,17 +187,19 @@ def main():
                             saver.save(sess=sess, save_path=save_path,
                                        global_step=global_step)
 
-                        print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
-                              .format(epoch + 1, _step, _acc, _loss))
+                        print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                              .format(epoch + 1, _step, _acc, _loss), end='')
 
                     except tf.errors.OutOfRangeError:
                         break
 
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
+                print('\n{}'.format('-' * 65))
                 print('Saving checkpoint to {}'.format(save_path))
                 saver.save(sess=sess, save_path=save_path,
                            global_step=global_step)
+                print('\n{}'.format('-' * 65))
                 # End training.
                 break
 
