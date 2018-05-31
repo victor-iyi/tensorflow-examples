@@ -112,17 +112,20 @@ class RNN:
         # Initialize model's weights.
         with tf.name_scope("weights"):
             self.Wx = tf.get_variable(name="Wx",
-                                      shape=(self.args.time_steps, self.args.hidden_size),
+                                      shape=(self.args.time_steps,
+                                             self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wx)
 
             self.Wh = tf.get_variable(name="Wh",
-                                      shape=(self.args.hidden_size, self.args.hidden_size),
+                                      shape=(self.args.hidden_size,
+                                             self.args.hidden_size),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wh)
 
             self.Wo = tf.get_variable(name="Wo",
-                                      shape=(self.args.hidden_size, self.args.num_classes),
+                                      shape=(self.args.hidden_size,
+                                             self.args.num_classes),
                                       initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
             self.variable_summaries(self.Wo)
 
@@ -152,10 +155,12 @@ class RNN:
         with tf.name_scope('hidden_states'):
             init_state = tf.zeros(shape=(self.args.batch_size, self.args.hidden_size),
                                   name="initial")
-            hidden_states = tf.scan(self._loop, inputs, initializer=init_state, name="states")
+            hidden_states = tf.scan(
+                self._loop, inputs, initializer=init_state, name="states")
 
         with tf.name_scope('output'):
-            outputs = tf.map_fn(self._output, hidden_states, name="output_states")
+            outputs = tf.map_fn(self._output, hidden_states,
+                                name="output_states")
 
             predictions = {
                 'logits': outputs[-1],
@@ -174,7 +179,8 @@ class RNN:
                                                         reduction=tf.losses.Reduction.MEAN)
 
         with tf.name_scope('optimizer'):
-            self.optimizer = tf.train.RMSPropOptimizer(learning_rate=self.args.learning_rate)
+            self.optimizer = tf.train.RMSPropOptimizer(
+                learning_rate=self.args.learning_rate)
             self.train_op = self.optimizer.minimize(loss=self.loss,
                                                     global_step=self.global_step,
                                                     name="train_op")
@@ -189,7 +195,8 @@ class RNN:
 
         with tf.name_scope('accuracy'):
             correct = tf.equal(y_pred, y_true)
-            accuracy = tf.reduce_mean(tf.cast(correct, tf.float32), name="accuracy")
+            accuracy = tf.reduce_mean(
+                tf.cast(correct, tf.float32), name="accuracy")
 
             tf.summary.scalar('accuracy', accuracy)
 
@@ -272,16 +279,17 @@ def main():
                         acc = model.eval(features, labels)
 
                         _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
-                                                            model.loss, merge])
+                                                             model.loss, merge])
                         writer.add_summary(summary=summary, global_step=_step)
 
-                        if args.save_every % _step == 0:
-                            print('\nSaving checkpoint to {}'.format(args.save_dir))
+                        if _step % args.save_every == 0:
+                            print('\nSaving checkpoint to {}'.format(
+                                args.save_dir))
                             saver.save(sess=sess, save_path=args.save_dir,
-                                    global_step=model.global_step)
+                                       global_step=model.global_step)
 
                         print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
-                            .format(epoch + 1, _step, acc, _loss))
+                              .format(epoch + 1, _step, acc, _loss))
                 except tf.errors.OutOfRangeError:
                     print('\nEnd batch!')
                     break

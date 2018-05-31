@@ -267,8 +267,8 @@ def main():
         # Each training epochs.
         for epoch in range(args.epochs):
             try:
-                try:
-                    while True:
+                while True:
+                    try:
                         # Train the network.
                         _, _step, _loss, _acc, summary = sess.run([train_op, global_step,
                                                                    loss, accuracy, merged])
@@ -279,14 +279,16 @@ def main():
                               .format(epoch + 1, _step, _acc, _loss), end='')
 
                         # Save model.
-                        if epoch % args.save_every == 0:
+                        if _step % args.save_every == 0:
                             print('\nSaving model to {}'.format(args.save_dir))
                             saver.save(sess=sess, save_path=args.save_dir,
                                        global_step=global_step)
-                except tf.errors.OutOfRangeError:
-                    # Batch ended.
-                    print('\nEnd batch!')
-                    break
+                    except tf.errors.OutOfRangeError:
+                        # Batch ended.
+                        print('\nEnd batch!')
+                        # Re-initialize the train dataset iterator.
+                        sess.run(train_iter)
+                        break
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
 
@@ -331,7 +333,7 @@ if __name__ == '__main__':
                         help='Number of training iteration/epochs.')
     parser.add_argument('--save_dir', type=str, default='../saved/rnn/model',
                         help='Model save directory.')
-    parser.add_argument('--save_every', type=int, default=200,
+    parser.add_argument('--save_every', type=int, default=1000,
                         help='Save model every number of steps.')
 
     # Tensorboard arguments.

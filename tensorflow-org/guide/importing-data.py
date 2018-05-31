@@ -202,8 +202,16 @@ test_init = iterator.make_initializer(dataset=test_data, name="test_dataset")
 with tf.Session() as sess:
     # Train dataset initializer.
     sess.run(train_init)
-    X, y = sess.run([features, labels])
-    print(X, y)
+    
+    # Get all data in dataset.
+    while True:
+        try:
+            X, y = sess.run([features, labels])
+            print(X, y)
+        except tf.errors.OutOfRangeError:
+            sess.run(train_init)
+            break
+
 
     # Test dataset initializer.
     sess.run(test_init)
