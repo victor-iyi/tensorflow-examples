@@ -16,9 +16,11 @@
 """
 
 import argparse
+import os
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.data import batch_and_drop_remainder
 
 # Command line arguments.
 args = None
@@ -65,7 +67,8 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None, shuffle: bool 
         dataset = tf.data.Dataset.from_tensor_slices(features)
 
     # Transform dataset.
-    dataset = dataset.batch(batch_size=args.batch_size)
+    # dataset = dataset.batch(batch_size=args.batch_size)
+    dataset = dataset.apply(batch_and_drop_remainder(args.batch_size))
     if shuffle:
         dataset = dataset.shuffle(buffer_size=args.buffer_size)
 
@@ -240,6 +243,8 @@ def main():
     merged = tf.summary.merge_all()
 
     with tf.Session() as sess:
+        save_path = os.path.join(args.save_dir, 'model.ckpt')
+
         # Saver & Summary writer.
         saver = tf.train.Saver()
         writer = tf.summary.FileWriter(logdir=args.logdir, graph=sess.graph)
@@ -280,8 +285,8 @@ def main():
 
                         # Save model.
                         if _step % args.save_every == 0:
-                            print('\nSaving model to {}'.format(args.save_dir))
-                            saver.save(sess=sess, save_path=args.save_dir,
+                            print('\nSaving model to {}'.format(save_path))
+                            saver.save(sess=sess, save_path=save_path,
                                        global_step=global_step)
                     except tf.errors.OutOfRangeError:
                         # Batch ended.
@@ -293,8 +298,8 @@ def main():
                 print('\nTraining interrupted by user!')
 
                 # Save learned model.
-                print('Saving model to {}'.format(args.save_dir))
-                saver.save(sess=sess, save_path=args.save_dir,
+                print('Saving model to {}'.format(save_path))
+                saver.save(sess=sess, save_path=save_path,
                            global_step=global_step)
 
                 # End training.
@@ -331,7 +336,7 @@ if __name__ == '__main__':
                         help='Optimizer\'s learning rate.')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Number of training iteration/epochs.')
-    parser.add_argument('--save_dir', type=str, default='../saved/rnn/model',
+    parser.add_argument('--save_dir', type=str, default='../saved/rnn/',
                         help='Model save directory.')
     parser.add_argument('--save_every', type=int, default=1000,
                         help='Save model every number of steps.')
