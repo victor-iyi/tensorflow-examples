@@ -183,9 +183,11 @@ def main():
                             writer.add_summary(summary, global_step=_step)
 
                         if _step % args.save_every == 0:
-                            print('\nSaving checkpoint to {}'.format(save_path))
+                            print('\n{}'.format('-' * 65))
+                            print('Saving model to {}'.format(save_path))
                             saver.save(sess=sess, save_path=save_path,
                                        global_step=global_step)
+                            print('{}\n'.format('-' * 65))
 
                         print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
                               .format(epoch + 1, _step, _acc, _loss), end='')
@@ -196,10 +198,10 @@ def main():
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
                 print('\n{}'.format('-' * 65))
-                print('Saving checkpoint to {}'.format(save_path))
+                print('Saving model to {}'.format(save_path))
                 saver.save(sess=sess, save_path=save_path,
                            global_step=global_step)
-                print('\n{}'.format('-' * 65))
+                print('{}\n'.format('-' * 65))
                 # End training.
                 break
 
