@@ -15,10 +15,12 @@
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 """
 
+import os
 import argparse
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.data import batch_and_drop_remainder
 
 # Command line arguments.
 args = None
@@ -65,7 +67,8 @@ def make_dataset(features: np.ndarray, labels: np.ndarray = None, shuffle: bool 
         dataset = tf.data.Dataset.from_tensor_slices(features)
 
     # Transform dataset.
-    dataset = dataset.batch(batch_size=args.batch_size)
+    # dataset = dataset.batch(batch_size=args.batch_size)
+    dataset = dataset.apply(batch_and_drop_remainder(args.batch_size))
     if shuffle:
         dataset = dataset.shuffle(buffer_size=args.buffer_size)
 
@@ -104,135 +107,6 @@ def load_data(one_hot=False, dataset=True):
     return train_data, test_data
 
 
-# noinspection PyAttributeOutsideInit
-class RNN:
-    def __init__(self, args):
-        self.args = args
-
-        # Initialize model's weights.
-        with tf.name_scope("weights"):
-            self.Wx = tf.get_variable(name="Wx",
-                                      shape=(self.args.time_steps,
-                                             self.args.hidden_size),
-                                      initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
-            self.variable_summaries(self.Wx)
-
-            self.Wh = tf.get_variable(name="Wh",
-                                      shape=(self.args.hidden_size,
-                                             self.args.hidden_size),
-                                      initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
-            self.variable_summaries(self.Wh)
-
-            self.Wo = tf.get_variable(name="Wo",
-                                      shape=(self.args.hidden_size,
-                                             self.args.num_classes),
-                                      initializer=tf.truncated_normal_initializer(mean=0, stddev=0.1))
-            self.variable_summaries(self.Wo)
-
-        # Initialize models bias.
-        with tf.name_scope("biases"):
-            self.bh = tf.get_variable(name="bh",
-                                      shape=[self.args.hidden_size],
-                                      initializer=tf.zeros_initializer())
-            self.variable_summaries(self.bh)
-
-            self.bo = tf.get_variable(name="bo",
-                                      shape=[self.args.num_classes],
-                                      initializer=tf.zeros_initializer())
-            self.variable_summaries(self.bo)
-
-        self.global_step = tf.train.get_global_step()
-        # self.summary = tf.summary.merge_all()
-
-    def __call__(self, inputs: tf.Tensor):
-        return self.predict(inputs)
-
-    def predict(self, inputs: tf.Tensor):
-        # Reshape inputs.
-        with tf.name_scope('inputs'):
-            inputs = tf.transpose(inputs, perm=[1, 0, 2], name="reshape")
-
-        with tf.name_scope('hidden_states'):
-            init_state = tf.zeros(shape=(self.args.batch_size, self.args.hidden_size),
-                                  name="initial")
-            hidden_states = tf.scan(
-                self._loop, inputs, initializer=init_state, name="states")
-
-        with tf.name_scope('output'):
-            outputs = tf.map_fn(self._output, hidden_states,
-                                name="output_states")
-
-            predictions = {
-                'logits': outputs[-1],
-                'probability': tf.nn.softmax(outputs[-1], name="probability")
-            }
-
-        return predictions
-
-    def train(self, features: tf.Tensor, labels: tf.Tensor):
-        pred = self.predict(features)
-        logits = pred['logits']
-
-        with tf.name_scope('loss'):
-            self.loss = tf.losses.softmax_cross_entropy(onehot_labels=labels,
-                                                        logits=logits,
-                                                        reduction=tf.losses.Reduction.MEAN)
-
-        with tf.name_scope('optimizer'):
-            self.optimizer = tf.train.RMSPropOptimizer(
-                learning_rate=self.args.learning_rate)
-            self.train_op = self.optimizer.minimize(loss=self.loss,
-                                                    global_step=self.global_step,
-                                                    name="train_op")
-
-        # Merge all summaries.
-        # self.summary = tf.summary.merge_all()
-
-    def eval(self, features: tf.Tensor, labels: tf.Tensor):
-        pred = self.predict(features)
-        y_pred = tf.argmax(pred['probability'], axis=1)
-        y_true = tf.argmax(labels, axis=1)
-
-        with tf.name_scope('accuracy'):
-            correct = tf.equal(y_pred, y_true)
-            accuracy = tf.reduce_mean(
-                tf.cast(correct, tf.float32), name="accuracy")
-
-            tf.summary.scalar('accuracy', accuracy)
-
-        return accuracy
-
-    @staticmethod
-    def variable_summaries(var: tf.Tensor):
-        with tf.name_scope('summaries'):
-            # Mean value.
-            mean = tf.reduce_mean(var)
-            tf.summary.scalar('mean', mean)
-
-            # Standard deviation.
-            with tf.name_scope('stddev'):
-                stddev = tf.sqrt(tf.reduce_mean(tf.square(var - mean)))
-            tf.summary.scalar('stddev', stddev)
-
-            # Min & Max values.
-            tf.summary.scalar('min', tf.reduce_min(var))
-            tf.summary.scalar('max', tf.reduce_max(var))
-
-            # Distribution.
-            tf.summary.histogram('histogram', var)
-
-    def _loop(self, prev: tf.Tensor, curr: tf.Tensor):
-        hidden = tf.matmul(curr, self.Wx) + tf.matmul(prev, self.Wh) + self.bh
-        return tf.tanh(hidden)
-
-    def _output(self, hidden: tf.Tensor):
-        return tf.matmul(hidden, self.Wo) + self.bo
-
-    @property
-    def parameters(self):
-        return [self.Wx, self.Wh, self.Wo, self.bh, self.bo]
-
-
 def main():
     train, test = load_data(one_hot=True, dataset=True)
 
@@ -242,17 +116,43 @@ def main():
     # Get features & labels.
     features, labels = iterator.get_next()
 
+    cell = tf.nn.rnn_cell.BasicRNNCell(args.hidden_size)
+    initial_state = cell.zero_state(args.batch_size, tf.float32)
+    outputs, _ = tf.nn.dynamic_rnn(cell=cell, inputs=features,
+                                   initial_state=initial_state)
+    rnn_output = outputs[:, -1]
+    logits = tf.layers.dense(rnn_output, args.num_classes)
+    y_pred = tf.nn.softmax(logits, name="probabilities")
+
+    with tf.name_scope("loss"):
+        loss = tf.losses.softmax_cross_entropy(onehot_labels=labels,
+                                               logits=logits,
+                                               reduction=tf.losses.Reduction.MEAN)
+        tf.summary.scalar("loss", loss)
+
+    with tf.name_scope("train"):
+        optimizer = tf.train.AdamOptimizer(args.learning_rate)
+        global_step = tf.train.get_or_create_global_step()
+        train_op = optimizer.minimize(loss=loss,
+                                      global_step=global_step,
+                                      name="train_op")
+
+    accuracy, _ = tf.metrics.accuracy(labels=labels,
+                                      predictions=y_pred)
+
+    merged = tf.summary.merge_all()
+
     # Train & test iterator object.
     train_iter = iterator.make_initializer(train, name="train_dataset")
-    # test_iter = iterator.make_initializer(test, name="test_dataset")
 
     with tf.Session() as sess:
-        model = RNN(args=args)
+        sess.run(tf.local_variables_initializer())
+
         init = tf.global_variables_initializer()
+        save_path = os.path.join(args.save_dir, 'model.ckpt')
 
         saver = tf.train.Saver()
         writer = tf.summary.FileWriter(logdir=args.logdir, graph=sess.graph)
-        merge = tf.summary.merge_all()
 
         # Restore Training session properly.
         if tf.gfile.Exists(args.save_dir):
@@ -265,39 +165,39 @@ def main():
                 sess.run(init)
         else:
             tf.gfile.MakeDirs(args.save_dir)
-            print('INFO: Created checkpoint directory: {}'.format(args.save_dir))
+            print('INFO: Checkpoint directory created @ {}'.format(args.save_dir))
             sess.run(init)
-
-        # Train dataset initializer.
-        sess.run(train_iter)
 
         for epoch in range(args.epochs):
             try:
-                try:
-                    while True:
-                        model.train(features, labels)
-                        acc = model.eval(features, labels)
+                # Train dataset initializer.
+                sess.run(train_iter)
+                while True:
+                    try:
+                        # Train the model.
+                        _, _step, _loss, _acc = sess.run([train_op, global_step,
+                                                          loss, accuracy])
 
-                        _, _step, _loss, summary = sess.run([model.train_op, model.global_step,
-                                                             model.loss, merge])
-                        writer.add_summary(summary=summary, global_step=_step)
+                        if _step % args.log_every == 0:
+                            summary = sess.run(merged)
+                            writer.add_summary(summary, global_step=_step)
 
                         if _step % args.save_every == 0:
-                            print('\nSaving checkpoint to {}'.format(
-                                args.save_dir))
-                            saver.save(sess=sess, save_path=args.save_dir,
-                                       global_step=model.global_step)
+                            print('\nSaving checkpoint to {}'.format(save_path))
+                            saver.save(sess=sess, save_path=save_path,
+                                       global_step=global_step)
 
                         print('Epoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
-                              .format(epoch + 1, _step, acc, _loss))
-                except tf.errors.OutOfRangeError:
-                    print('\nEnd batch!')
-                    break
+                              .format(epoch + 1, _step, _acc, _loss))
+
+                    except tf.errors.OutOfRangeError:
+                        break
+
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
-                print('Saving checkpoint to {}'.format(args.save_dir))
-                saver.save(sess=sess, save_path=args.save_dir,
-                           global_step=model.global_step)
+                print('Saving checkpoint to {}'.format(save_path))
+                saver.save(sess=sess, save_path=save_path,
+                           global_step=global_step)
                 # End training.
                 break
 
@@ -332,13 +232,13 @@ if __name__ == '__main__':
                         help='Optimizer\'s learning rate.')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Number of training iteration/epochs.')
-    parser.add_argument('--save_dir', type=str, default='../saved/mnist-rnn/model',
+    parser.add_argument('--save_dir', type=str, default='../saved/mnist-rnn',
                         help='Model save directory.')
     parser.add_argument('--save_every', type=int, default=1000,
                         help='Save model every number of steps.')
 
     # Tensorboard arguments.
-    parser.add_argument('--logdir', type=str, default='../logs/mnist-rnn/logs',
+    parser.add_argument('--logdir', type=str, default='../logs/mnist-rnn',
                         help='Tensorboard log directory.')
     parser.add_argument('--log_every', type=int, default=400,
                         help='Log for tensorboard every number of steps.')
