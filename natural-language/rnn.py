@@ -267,21 +267,26 @@ def main():
         # Each training epochs.
         for epoch in range(args.epochs):
             try:
-                # Train the network.
-                _, _step, _loss, _acc, summary = sess.run([train_op, global_step,
-                                                           loss, accuracy, merged])
-                # Log training to tensorboard.
-                writer.add_summary(summary=summary, global_step=_step)
+                try:
+                    while True:
+                        # Train the network.
+                        _, _step, _loss, _acc, summary = sess.run([train_op, global_step,
+                                                                   loss, accuracy, merged])
+                        # Log training to tensorboard.
+                        writer.add_summary(summary=summary, global_step=_step)
 
-                print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
-                      .format(epoch + 1, _step, _acc, _loss), end='')
+                        print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                              .format(epoch + 1, _step, _acc, _loss), end='')
 
-                # Save model.
-                if epoch % args.save_every == 0:
-                    print('\nSaving model to {}'.format(args.save_dir))
-                    saver.save(sess=sess, save_path=args.save_dir,
-                               global_step=global_step)
-
+                        # Save model.
+                        if epoch % args.save_every == 0:
+                            print('\nSaving model to {}'.format(args.save_dir))
+                            saver.save(sess=sess, save_path=args.save_dir,
+                                       global_step=global_step)
+                except tf.errors.OutOfRangeError:
+                    # Batch ended.
+                    print('\nEnd batch!')
+                    break
             except KeyboardInterrupt:
                 print('\nTraining interrupted by user!')
 
@@ -322,7 +327,7 @@ if __name__ == '__main__':
     # Training arguments.
     parser.add_argument('--learning_rate', type=float, default=1e-2,
                         help='Optimizer\'s learning rate.')
-    parser.add_argument('--epochs', type=int, default=1000,
+    parser.add_argument('--epochs', type=int, default=10,
                         help='Number of training iteration/epochs.')
     parser.add_argument('--save_dir', type=str, default='../saved/rnn/model',
                         help='Model save directory.')
