@@ -2,6 +2,36 @@ import os
 
 import numpy as np
 import tensorflow as tf
+from tensorflow.contrib.data import batch_and_drop_remainder
+
+
+def make_dataset(features: np.ndarray, labels: np.ndarray = None, shuffle: bool = False):
+    """Converts features and labels into a tf.data.Dataset object.
+
+    Arguments:
+        features {np.ndarray} -- NumPy Array containing features.
+
+    Keyword Arguments:
+        labels {np.ndarray} -- NumPy array containing  labels. (default: {None})
+        shuffle {bool} -- Shuffle the dataset? (default: {False})
+
+    Returns:
+        tf.data.Dataset -- Dataset object.
+    """
+
+    if labels is not None:
+        dataset = tf.data.Dataset.from_tensor_slices((features, labels))
+    else:
+        dataset = tf.data.Dataset.from_tensor_slices(features)
+
+    # Transform dataset.
+    # dataset = dataset.batch(batch_size=args.batch_size)
+    dataset = dataset.apply(batch_and_drop_remainder(args.batch_size))
+
+    if shuffle:
+        dataset = dataset.shuffle(buffer_size=args.buffer_size)
+
+    return dataset
 
 
 def fake_data(n, size=28, channels=1):
@@ -119,12 +149,14 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
     return hot
 
 
-def load_data(one_hot=False):
-    """Load MNIST dataset.
+def load_data(one_hot: bool=False, dataset: bool=False):
+    """Load MNIST dataset into an optional tf.data.Dataset object.
 
     Args:
         one_hot (bool):
             Maybe convert labels to one-hot arrays.
+        dataset (bool):
+            Should return tf.data.Dataset object. (default: {False})
 
     Examples:
         ```python
@@ -138,30 +170,43 @@ def load_data(one_hot=False):
         Test: images = (10000, 28, 28)	 labels = (10000, 10)
 
         ```
+        ```python
+        >>> train, test = load_data(one_hot=True, dataset=True)
+        >>> iterator = tf.data.Iterator.from_structure(
+                            output_types=train.output_types,
+                            output_shapes=train.output_shapes,
+                            output_classes=train.output_classes
+                        )
+        >>> features, labels = iterator.get_next()
+        >>> # model.train(features, labels)
+
+        ```
 
     Returns:
-        tuple: train, test
+        tuple: Train and test dataset splits.
     """
-    # Maybe download mnist dataset.
     train, test = tf.keras.datasets.mnist.load_data()
 
-    # Split into images & labels.
     X_train, y_train = train
     X_test, y_test = test
 
-    # Release train & test from memory.
     del train, test
 
-    # Convert images to np.float32
+    # Change dtype of features.
     X_train = np.array(X_train, dtype=np.float32)
     X_test = np.array(X_test, dtype=np.float32)
 
-    # Convert labels to one hot vectors.
     if one_hot:
-        y_train = make_one_hot(indices=y_train, depth=10)
-        y_test = make_one_hot(indices=y_test, depth=10)
+        y_train = make_one_hot(y_train, depth=args.num_classes)
+        y_test = make_one_hot(y_test, depth=args.num_classes)
 
-    return (X_train, y_train), (X_test, y_test)
+    if dataset is False:
+        return (X_train, y_train), (X_test, y_test)
+
+    train_data = make_dataset(X_train, y_train, shuffle=True)
+    test_data = make_dataset(X_test, y_test, shuffle=False)
+
+    return train_data, test_data
 
 
 if __name__ == '__main__':
