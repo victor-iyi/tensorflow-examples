@@ -143,9 +143,13 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
     Returns:
         one_hot (np.ndarray): One-hot encoded array.
     """
-    hot = np.zeros(shape=(len(indices), depth), dtype=dtype)
-    for i, index in enumerate(indices):
-        hot[i, index] = 1.
+    # Length of the array.
+    n = len(indices)
+
+    # One-hot encoding.
+    hot = np.zeros(shape=(n, depth), dtype=dtype)
+    hot[range(n), indices] = 1.
+
     return hot
 
 
