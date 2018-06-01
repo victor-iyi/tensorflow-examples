@@ -209,6 +209,73 @@ def load_data(one_hot: bool=False, dataset: bool=False):
     return train_data, test_data
 
 
+def odd_even_sequences(n: int, seq_len: int=6, pad: bool=True, **kwargs):
+    """Generate odd & even number sequences (as English words).
+
+    Args:
+        n (int): Number of sequential data to generate.
+        seq_len (int): Sequence lengths. (default {6})
+        pad (bool): Apply zero padding to varying sequences (default {True})
+
+    Keyword Args:
+         min_len (int): Minimum sequence length. (default {3})
+         max_len (int): Maximum sequence length. (default {7})
+         return_sequences (bool): Should return the sequence lengths
+            alongside the data. (default {True})
+
+    Examples:
+        ```python
+        >>> # With padding.
+        >>> odd_seq, even_seq = odd_even_sequences(100, seq_len=5)
+        >>> print(odd_seq[:3])
+        ['Nine Seven Seven One Nine', 'Seven Nine Nine PAD PAD', 'Nine Three Nine Nine PAD']
+        >>> print(even_seq[:3])
+        ['Four Eight Six Two Two', 'Four Four Six PAD PAD', 'Six Two Two Two PAD']
+        ```
+
+        ```python
+        >>> # With out padding.
+        >>> (odd_seq, even_seq), seqs = odd_even_sequences(100, pad=False, return_sequences=True)
+        >>> print(odd_seq[:3])
+        ['Five One Three Three Five', 'Nine One Three Nine', 'Three Three Seven One One Three']
+        >>> print(even_seq[:3])
+        ['Four Six Four Eight Eight', 'Six Two Two Four', 'Eight Six Four Eight Two Two']
+        >>> print(seqs[:3])
+        [5, 4, 6]
+        ```
+
+    Returns:
+        tuple -- (evens, odds).
+            (evens, odds), seq_lens if `return_sequences` == True.
+    """
+    # Extract keyword arguments.
+    min_len = kwargs.get('min_len') or 3
+    max_len = kwargs.get('max_len') or 7
+    return_sequences = kwargs.get('return_sequences') or False
+
+    # Assert minimum & maximum sequence lengths.
+    assert min_len > 1 and max_len < 10, 'Sequence Length Assertion: Min of 1 & Max of 7'
+
+    evens, odds, seq_lens = [], [], []
+
+    for i in range(n):
+        rand_seq_len = np.random.choice(range(min_len, max_len))
+        seq_lens.append(rand_seq_len)
+        odd = np.random.choice(range(1, 10, 2), size=rand_seq_len)
+        even = np.random.choice(range(2, 10, 2), size=rand_seq_len)
+
+        # Sequence padding.
+        if pad and rand_seq_len < seq_len:
+            odd = np.append(odd, [0] * (seq_len - rand_seq_len))
+            even = np.append(even, [0] * (seq_len - rand_seq_len))
+
+        # Random numbered words.
+        odds.append(' '.join([DIGIT_MAP[r] for r in odd]))
+        evens.append(' '.join([DIGIT_MAP[r] for r in even]))
+
+    return (odds, evens), seq_lens if return_sequences else (odds, evens)
+
+
 if __name__ == '__main__':
     # fake_data demo
     # X, y = fake_data(128, size=32, channels=1)
