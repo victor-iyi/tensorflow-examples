@@ -256,6 +256,11 @@ def odd_even_sequences(n: int, seq_len: int=6, pad: bool=True, **kwargs):
     # Assert minimum & maximum sequence lengths.
     assert min_len > 1 and max_len < 10, 'Sequence Length Assertion: Min of 1 & Max of 7'
 
+    DIGIT_MAP = {
+        0: 'PAD', 1: 'One', 2: 'Two', 3: 'Three', 4: 'Four',
+        5: 'Five', 6: 'Six', 7: 'Seven', 8: 'Eight', 9: 'Nine'
+    }
+
     evens, odds, seq_lens = [], [], []
 
     for i in range(n):
