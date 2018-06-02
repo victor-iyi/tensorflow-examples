@@ -16,7 +16,7 @@
 """
 
 import argparse
-import os
+import os.path
 
 import numpy as np
 import tensorflow as tf
@@ -134,10 +134,6 @@ def main():
     # Labels  Shape: (batch_size, num_classes)
     features, labels = iterator.get_next()
 
-    # Initializes iterator for each train & test dataset.
-    train_iter = iterator.make_initializer(train, name='train_dataset')
-    # test_iter = iterator.make_initializer(test, name='test_dataset')
-
     # Recurrent Network weights & biases.
     # Network weights.
     with tf.name_scope('weights'):
@@ -220,11 +216,12 @@ def main():
     with tf.name_scope('rnn_outputs'):
         rnn_outputs = tf.map_fn(get_outputs, hidden_states)
         logits = rnn_outputs[-1]
-        outputs = tf.nn.softmax(logits)
+        y_pred = tf.nn.softmax(logits)
 
     with tf.name_scope('loss'):
         loss = tf.losses.softmax_cross_entropy(onehot_labels=labels, logits=logits,
                                                reduction=tf.losses.Reduction.MEAN)
+        tf.summary.scalar('loss', loss)
 
     with tf.name_scope('train'):
         optimizer = tf.train.AdamOptimizer(learning_rate=args.learning_rate)
@@ -232,17 +229,23 @@ def main():
         train_op = optimizer.minimize(loss, global_step=global_step,
                                       name='train_op')
 
-    with tf.name_scope('accuracy'):
-        y_pred = tf.argmax(outputs, axis=1)
-        y_true = tf.argmax(labels, axis=1)
+    with tf.name_scope('accuracies'):
         # Correct predictions.
-        correct = tf.equal(y_pred, y_true, name='correct')
+        with tf.name_scope('correct_prediction'):
+            correct = tf.equal(tf.argmax(y_pred, axis=1),
+                               tf.argmax(labels, axis=1))
         # Accuracy.
-        accuracy = tf.reduce_mean(tf.cast(correct, tf.int32), name='accuracy')
+        with tf.name_scope('accuracy'):
+            accuracy = tf.reduce_mean(tf.cast(correct, tf.float32))
+
         tf.summary.scalar('accuracy', accuracy)
 
     # Merge all Tensorboard summaries.
     merged = tf.summary.merge_all()
+
+    # Initializes iterator for each train & test dataset.
+    train_iter = iterator.make_initializer(train, name='train_dataset')
+    # test_iter = iterator.make_initializer(test, name='test_dataset')
 
     with tf.Session() as sess:
         save_path = os.path.join(args.save_dir, 'model.ckpt')
@@ -264,45 +267,46 @@ def main():
                 sess.run(init)
         else:
             tf.gfile.MakeDirs(args.save_dir)
-            print('INFO: No checkpoints found. Creating checkpoint @ {}'
-                  .format(args.save_dir))
+            print('INFO: Creating checkpoint @ {}'.format(args.save_dir))
             sess.run(init)
-
-        # Reset iterator initializer.
-        sess.run(train_iter)
 
         # Each training epochs.
         for epoch in range(args.epochs):
             try:
+                # Reset iterator initializer.
+                sess.run(train_iter)
                 while True:
                     try:
                         # Train the network.
-                        _, _step, _loss, _acc, summary = sess.run([train_op, global_step,
-                                                                   loss, accuracy, merged])
-                        # Log training to tensorboard.
-                        writer.add_summary(summary=summary, global_step=_step)
-
-                        print('\rEpoch: {:,}\tStep: {:,}\tAcc: {:.2%}\tLoss: {:.3f}'
+                        _, _step, _loss, _acc = sess.run([train_op, global_step,
+                                                          loss, accuracy])
+                        # Log training progress.
+                        print('\rEpoch: {:,} Step: {:,} Acc: {:.2%} Loss: {:.3f}'
                               .format(epoch + 1, _step, _acc, _loss), end='')
+
+                        # Log training to tensorboard.
+                        if _step % args.log_every == 0:
+                            summary = sess.run(merged)
+                            writer.add_summary(summary, global_step=_step)
 
                         # Save model.
                         if _step % args.save_every == 0:
-                            print('\nSaving model to {}'.format(save_path))
+                            print('\n{}\nSaving model to {}'
+                                  .format('-' * 65, save_path))
                             saver.save(sess=sess, save_path=save_path,
                                        global_step=global_step)
+                            print('{}\n'.format('-' * 65))
+
                     except tf.errors.OutOfRangeError:
-                        # Batch ended.
-                        print('\nEnd batch!')
-                        # Re-initialize the train dataset iterator.
-                        sess.run(train_iter)
                         break
             except KeyboardInterrupt:
-                print('\nTraining interrupted by user!')
+                print('\n{}\nTraining interrupted by user!'.format('-' * 65))
 
-                # Save learned model.
                 print('Saving model to {}'.format(save_path))
                 saver.save(sess=sess, save_path=save_path,
                            global_step=global_step)
+
+                print('{}\n'.format('-' * 65))
 
                 # End training.
                 break
@@ -328,7 +332,7 @@ if __name__ == '__main__':
                         help='Dropout Rate.')
 
     # Data transformation arguments.
-    parser.add_argument('--batch_size', type=int, default=100,
+    parser.add_argument('--batch_size', type=int, default=128,
                         help='Mini batch size.')
     parser.add_argument('--buffer_size', type=int, default=1000,
                         help='Shuffle rate.')
@@ -338,15 +342,15 @@ if __name__ == '__main__':
                         help='Optimizer\'s learning rate.')
     parser.add_argument('--epochs', type=int, default=10,
                         help='Number of training iteration/epochs.')
-    parser.add_argument('--save_dir', type=str, default='../saved/rnn/',
+    parser.add_argument('--save_dir', type=str, default='saved/rnn/',
                         help='Model save directory.')
     parser.add_argument('--save_every', type=int, default=1000,
                         help='Save model every number of steps.')
 
     # Tensorboard arguments.
-    parser.add_argument('--logdir', type=str, default='../logs/rnn/logs',
+    parser.add_argument('--logdir', type=str, default='logs/rnn/logs',
                         help='Tensorboard log directory.')
-    parser.add_argument('--log_every', type=int, default=400,
+    parser.add_argument('--log_every', type=int, default=200,
                         help='Log for tensorboard every number of steps.')
 
     args = parser.parse_args()

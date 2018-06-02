@@ -147,8 +147,8 @@ def main():
                             writer.add_summary(summary, global_step=_step)
 
                         if _step % args.save_every == 0:
-                            print('\n{}'.format('-' * 65))
-                            print('\nSaving model to {}'.format(save_path))
+                            print('\n{}\nSaving model to {}'
+                                  .format('-' * 65, save_path))
                             saver.save(sess=sess, save_path=save_path,
                                        global_step=global_step)
                             print('{}\n'.format('-' * 65))
