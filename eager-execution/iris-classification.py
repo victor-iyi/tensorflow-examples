@@ -25,61 +25,7 @@ from tensorflow.contrib.summary import summary
 tf.enable_eager_execution()
 
 # Hyperparameters.
-buffer_size = 1000
-batch_size = 32
-learning_rate = 1e-2
-
-
-def _parse_line(line: any) -> tuple:
-    """Perform pre-processing on each row in the CSV file.
-
-    Args:
-        line (any): Each row of the CSV file.
-
-    Returns:
-        (features, labels) - Parsed features and labels.
-    """
-    row = tf.decode_csv(line, record_defaults=[[0.], [0.], [0.], [0.], [0]])
-    # Split line into features and labels.
-    features = tf.reshape(row[:-1], shape=(4,))
-    labels = tf.reshape(row[-1], shape=())
-    # Return parsed features & labels.
-    return features, labels
-
-
-def load_data() -> tuple:
-    """Load training and testing dataset as a tf.data.Dataset object.
-
-    Returns:
-        (tf.data.Dataset, tf.data.Dataset) - train, test
-    """
-    # Iris training and testing dataset URL. May change in the future.
-    TRAIN_URL = "http://download.tensorflow.org/data/iris_training.csv"
-    TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
-
-    # Download dataset if they exist. Otherwise load from disk.
-    train_path = tf.keras.utils.get_file(fname=TRAIN_URL.split('/')[-1],
-                                         origin=TRAIN_URL)
-    test_path = tf.keras.utils.get_file(fname=TEST_URL.split('/')[-1],
-                                        origin=TEST_URL)
-
-    # Train dataset.
-    train = tf.data.TextLineDataset(train_path)
-    train = train.skip(count=1)
-    train = train.map(_parse_line)
-    train = train.shuffle(buffer_size=buffer_size)
-    train = train.batch(batch_size=batch_size)
-
-    # Test dataset.
-    test = tf.data.TextLineDataset(test_path)
-    test = test.skip(count=1)
-    test = test.map(_parse_line)
-    test = test.shuffle(buffer_size=buffer_size)
-    test = test.batch(batch_size=batch_size)
-
-    # Return train & test as a tf.data.Dataset object.
-    return train, test
-
+buffer_size, batch_size, learning_rate = 1000, 32, 1e-2
 
 """
 # Sci-kit learn utility functions.
@@ -117,6 +63,59 @@ train_data = train_data.batch(batch_size=32)
 # Testing set.
 test_data = tf.data.Dataset.from_tensor_slices((X_test, y_test))
 """
+
+
+def _parse_line(line: any):
+    """Perform pre-processing on each row in the CSV file.
+
+    Args:
+        line (any): Each row of the CSV file.
+
+    Returns:
+        (features, labels) - Parsed features and labels.
+    """
+    row = tf.decode_csv(line, record_defaults=[[0.], [0.], [0.], [0.], [0]])
+    # Split line into features and labels.
+    features = tf.reshape(row[:-1], shape=(4,))
+    labels = tf.reshape(row[-1], shape=())
+    # Return parsed features & labels.
+    return features, labels
+
+
+def load_data():
+    """Load training and testing dataset as a tf.data.Dataset object.
+
+    Returns:
+        (tf.data.Dataset, tf.data.Dataset) - train, test
+    """
+    # Iris training and testing dataset URL. May change in the future.
+    TRAIN_URL = "http://download.tensorflow.org/data/iris_training.csv"
+    TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
+
+    # Download dataset if they exist. Otherwise load from disk.
+    train_path = tf.keras.utils.get_file(fname=TRAIN_URL.split('/')[-1],
+                                         origin=TRAIN_URL)
+    test_path = tf.keras.utils.get_file(fname=TEST_URL.split('/')[-1],
+                                        origin=TEST_URL)
+
+    # Train dataset.
+    train = tf.data.TextLineDataset(train_path)
+    train = train.skip(count=1)
+    train = train.map(_parse_line)
+    train = train.shuffle(buffer_size=buffer_size)
+    train = train.batch(batch_size=batch_size)
+
+    # Test dataset.
+    test = tf.data.TextLineDataset(test_path)
+    test = test.skip(count=1)
+    test = test.map(_parse_line)
+    test = test.shuffle(buffer_size=buffer_size)
+    test = test.batch(batch_size=batch_size)
+
+    # Return train & test as a tf.data.Dataset object.
+    return train, test
+
+
 # Label names
 TARGET_NAMES = {0: 'Setosa', 1: 'Versicolor', 2: 'Virginica'}
 
@@ -156,7 +155,7 @@ class Network(tf.keras.Model):
         pass
 
 
-def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor) -> tf.Tensor:
+def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor):
     """Cross entropy loss function.
 
     Arguments:
@@ -174,7 +173,7 @@ def loss(model: tf.keras.Model, inputs: tf.Tensor, labels: tf.Tensor) -> tf.Tens
 
 
 def train_step(model: tf.keras.Model, optimizer: tf.train.Optimizer,
-               loss: loss, x: tf.Tensor, y: tf.Tensor) -> None:
+               loss: loss, x: tf.Tensor, y: tf.Tensor):
     """Training operation. That is, we minimize the loss function here.
 
     Arguments:
