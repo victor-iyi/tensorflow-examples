@@ -35,7 +35,7 @@ batch_size = 32
 learning_rate = 1e-2
 
 
-def one_hot(values: np.array, dtype: np.dtype = np.int32) -> np.array:
+def one_hot(values: np.array, dtype: np.dtype = np.int32):
     """Returns the one-hot encoding of `values` with data type `dtype`.
 
     Args:
@@ -53,7 +53,7 @@ def one_hot(values: np.array, dtype: np.dtype = np.int32) -> np.array:
     return hot
 
 
-def preprocess(dataframe: pd.DataFrame) -> tuple:
+def preprocess(dataframe: pd.DataFrame):
     """Pre process dataframe into TensorFlow's dataset object.
 
     Args:
@@ -69,7 +69,7 @@ def preprocess(dataframe: pd.DataFrame) -> tuple:
     return features, labels
 
 
-def load_data() -> tuple:
+def load_data():
     """Loads the Iris dataset from web (if not on disk).
 
     Returns:
@@ -123,7 +123,7 @@ class Network(tf.keras.Model):
         pass
 
 
-def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor) -> tf.Tensor:
+def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor):
     """Loss function. Calculate how bad the model is doing on the entire sample.
 
     Args:
