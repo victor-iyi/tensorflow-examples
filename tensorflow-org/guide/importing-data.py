@@ -196,13 +196,14 @@ iterator = tf.data.Iterator.from_structure(output_types=train_data.output_types,
 features, labels = iterator.get_next()
 
 # Using the Generic Iterator, we can initialize train & test with different dataset.
-train_init = iterator.make_initializer(dataset=train_data, name="train_dataset")
+train_init = iterator.make_initializer(dataset=train_data,
+                                       name="train_dataset")
 test_init = iterator.make_initializer(dataset=test_data, name="test_dataset")
 
 with tf.Session() as sess:
     # Train dataset initializer.
     sess.run(train_init)
-    
+
     # Get all data in dataset.
     while True:
         try:
@@ -211,7 +212,6 @@ with tf.Session() as sess:
         except tf.errors.OutOfRangeError:
             sess.run(train_init)
             break
-
 
     # Test dataset initializer.
     sess.run(test_init)

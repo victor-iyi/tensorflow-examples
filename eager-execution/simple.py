@@ -1,15 +1,15 @@
 """A simple Linear Classifier to find `W` and `b`.
 
-  @author 
+  @author
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
     Email: javafolabi@gmail.com
     GitHub: https://github.com/victor-iyiola
-  
+
   @project
     File: simple.py
     Created on 13 May, 2018 @ 11:32 AM.
-    
+
   @license
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
@@ -77,12 +77,12 @@ if __name__ == '__main__':
         dW, db = grad(X, y, W, b)
 
         # Update W & b.
-        W.assign_sub(learning_rate*dW)
-        b.assign_sub(learning_rate*db)
+        W.assign_sub(learning_rate * dW)
+        b.assign_sub(learning_rate * db)
         loss = loss_func(prediction(X, W, b), y)
 
         print(('\rEpoch {:,}\tLoss {:3f}\tW = {:.2f}'
-               '\tb={:.2f}').format(epoch+1, loss.numpy(),
+               '\tb={:.2f}').format(epoch + 1, loss.numpy(),
                                     W.numpy(), b.numpy()),
               end='')
 

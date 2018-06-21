@@ -72,11 +72,11 @@ class Model(tf.keras.Model):
 
     def call(self, inputs, **kwargs):
         """Implementation of the model's forward pass.
-        
+
         Arguments:
             inputs: Input tensor, or list/tuple of input tensors.
             **kwargs: Additional keyword arguments.
-        
+
         Returns:
             logits {tf.Tensor} -- Un-normalized output.
         """

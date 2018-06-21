@@ -1,15 +1,15 @@
 """Reference from https://tensorflow.org/develop/getting_started/for_beginners.html
 
-  @author 
+  @author
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
     Email: javafolabi@gmail.com
     GitHub: https://github.com/victor-iyiola
-  
+
   @project
     File: for-beginners.py
     Created on 11 May, 2018 @ 3:42 PM.
-    
+
   @license
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
@@ -25,7 +25,8 @@ TRAIN_URL = "http://download.tensorflow.org/data/iris_training.csv"
 TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
 
 # Column names and label names.
-CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth', 'Species']
+CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth',
+                    'PetalLength', 'PetalWidth', 'Species']
 SPECIES = ['Setosa', 'Versicolor', 'Virginica']
 
 # Hyperparameters.
@@ -98,7 +99,8 @@ class Network(tf.keras.Model):
         super(Network, self).__init__()
 
         # 1st hidden layer
-        self.hidden = tf.keras.layers.Dense(units=16, activation='relu', name='hidden')
+        self.hidden = tf.keras.layers.Dense(units=16, activation='relu',
+                                            name='hidden')
         self.dropout = tf.keras.layers.Dropout(rate=0.5, name='dropout')
         self.label = tf.keras.layers.Dense(units=3, name='output')
 
@@ -136,7 +138,8 @@ def loss_func(model: tf.keras.Model, features: tf.Tensor, labels: tf.Tensor):
             Mean of the computed loss
     """
     logits = model(features)
-    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits, labels=labels)
+    loss = tf.nn.softmax_cross_entropy_with_logits_v2(logits=logits,
+                                                      labels=labels)
     return tf.reduce_mean(loss, name="loss")
 
 

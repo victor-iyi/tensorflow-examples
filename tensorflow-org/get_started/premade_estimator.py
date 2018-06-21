@@ -1,14 +1,14 @@
 """
-  @author 
+  @author
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
     Email: javafolabi@gmail.com
     GitHub: https://github.com/victor-iyiola
-  
+
   @project
     File: pre-made_estimator.py
     Created on 03 May, 2018 @ 7:13 PM.
-    
+
   @license
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
@@ -44,7 +44,8 @@ def main(argv):
                      steps=args.train_step)
 
     # Evaluate model's accuracy.
-    eval_result = classifier.evaluate(input_fn=lambda: eval_input_fn(test_X, test_y, args.batch_size))
+    eval_result = classifier.evaluate(input_fn=lambda: eval_input_fn(test_X, test_y,
+                                                                     args.batch_size))
 
     print("Test set accuracy = {accuracy:.3f}\n".format(**eval_result))
 
@@ -57,13 +58,15 @@ def main(argv):
     }
 
     # Make predictions on new dataset.
-    predictions = classifier.predict(input_fn=lambda: eval_input_fn(predict_x, batch_size=args.batch_size))
+    predictions = classifier.predict(input_fn=lambda: eval_input_fn(predict_x,
+                                                                    batch_size=args.batch_size))
 
     for pred, l_name in zip(predictions, label_names):
         class_id = pred['class_id'][0]  # Class id 0, 1 or 2.
         prob = pred['probabilities']['class_id']  # Confidence probability.
 
-        print('Prediction is "{}"({:.2%}), expected: "{}"'.format(predict_x[class_id], prob, l_name))
+        print('Prediction is "{}"({:.2%}), expected: "{}"'.format(predict_x[class_id],
+                                                                  prob, l_name))
 
 
 if __name__ == '__main__':

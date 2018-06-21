@@ -1,15 +1,15 @@
 """Iris dataset utility functions to prepare the dataset.
 
-  @author 
+  @author
     Victor I. Afolabi
     Artificial Intelligence & Software Engineer.
     Email: javafolabi@gmail.com
     GitHub: https://github.com/victor-iyiola
-  
+
   @project
     File: eager-exec.py
     Created on 03 May, 2018 @ 2:11 PM.
-    
+
   @license
     MIT License
     Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
@@ -24,7 +24,8 @@ TRAIN_URL = "http://download.tensorflow.org/data/iris_training.csv"
 TEST_URL = "http://download.tensorflow.org/data/iris_test.csv"
 
 # Column names and label names.
-CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth', 'PetalLength', 'PetalWidth', 'Species']
+CSV_COLUMN_NAMES = ['SepalLength', 'SepalWidth',
+                    'PetalLength', 'PetalWidth', 'Species']
 SPECIES = ['Setosa', 'Versicolor', 'Virginica']
 
 

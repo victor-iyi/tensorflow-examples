@@ -15,11 +15,6 @@
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
 
 """
-import warnings
-
-# Ignore TensorFlow's deprecation warnings. (ANNOYING!)
-warnings.filterwarnings('ignore')
-
 import numpy as np
 import tensorflow as tf
 from tensorflow.contrib.eager.python import tfe

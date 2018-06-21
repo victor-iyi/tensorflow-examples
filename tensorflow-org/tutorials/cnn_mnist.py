@@ -1,15 +1,15 @@
 """A Guide to TF Layers: Building a Convolutional Neural Network.
 
-   @author 
+   @author
      Victor I. Afolabi
      Artificial Intelligence & Software Engineer.
      Email: javafolabi@gmail.com
      GitHub: https://github.com/victor-iyiola
-  
+
    @project
      File: mnist.py
      Created on 18 May, 2018 @ 5:26 PM.
-  
+
    @license
      MIT License
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
@@ -185,7 +185,8 @@ def model_fn(features: tf.Tensor, labels: tf.Tensor, mode: tf.estimator.ModeKeys
             with tf.name_scope("input"):
                 # Input layer.
                 input_layer = tf.reshape(tensor=features[args.feature_col],
-                                         shape=[-1, args.img_size, args.img_size, args.img_depth],
+                                         shape=[-1, args.img_size,
+                                                args.img_size, args.img_depth],
                                          name="reshape")
 
             # Convolutional block #1.

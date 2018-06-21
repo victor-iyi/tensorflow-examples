@@ -1,19 +1,18 @@
 """Classify cifar10 dataset using tf.estimator API.
 
-   @author 
+   @author
      Victor I. Afolabi
      Artificial Intelligence & Software Engineer.
      Email: javafolabi@gmail.com
      GitHub: https://github.com/victor-iyiola
-  
+
    @project
      File: cifar.py
      Created on 20 May, 2018 @ 4:51 PM.
-  
+
    @license
      MIT License
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
-  
 """
 
 import argparse
