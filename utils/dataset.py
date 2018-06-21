@@ -122,7 +122,7 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
     """Returns a one-hot array.
 
     Args:
-        indices (np.ndarray): Array to be converted.
+        indices (np.ndarray): 1-D array to be converted.
         depth (int): How many elements per item.
         dtype (np.dtype): Encoded array data type.
 
@@ -141,7 +141,7 @@ def make_one_hot(indices: np.ndarray, depth: int, dtype: np.dtype = np.int32):
         ```
 
     Returns:
-        one_hot (np.ndarray): One-hot encoded array.
+        one_hot (np.ndarray): array-like one-hot encoded array.
     """
     # Length of the array.
     n = len(indices)
