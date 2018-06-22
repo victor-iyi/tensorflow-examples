@@ -1,15 +1,15 @@
 """Recurrent Neural Network implementation to classify MNIST handwritten digits.
 
-   @author 
+   @author
      Victor I. Afolabi
      Artificial Intelligence & Software Engineer.
      Email: javafolabi@gmail.com
      GitHub: https://github.com/victor-iyiola
-  
+
    @project
      File: mnist-rnn.py
      Created on 30 May, 2018 @ 8:20 PM.
-  
+
    @license
      MIT License
      Copyright (c) 2018. Victor I. Afolabi. All rights reserved.
